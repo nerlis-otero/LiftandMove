@@ -410,8 +410,8 @@ class _CustomPageScrollPhysics extends ScrollPhysics {
   const _CustomPageScrollPhysics({
     required this.start,
     required this.end,
-    ScrollPhysics? parent,
-  }) : super(parent: parent);
+    super.parent,
+  });
 
   @override
   _CustomPageScrollPhysics applyTo(ScrollPhysics? ancestor) {

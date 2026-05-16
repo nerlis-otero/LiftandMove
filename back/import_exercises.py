@@ -1,13 +1,18 @@
 import json
+import os
+
 import pymysql
+from dotenv import load_dotenv
+
+load_dotenv()
 
 try:
     print("1. Conectando a MySQL...")
     conn = pymysql.connect(
-        host="localhost",
-        user="root",
-        password="delfin123",
-        database="rutinas_ejercicios"
+        host=os.getenv("DB_HOST", "localhost"),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASSWORD", "delfin123"),
+        database=os.getenv("DB_NAME", "rutinas_ejercicios"),
     )
     print("2. Conectado!")
     cursor = conn.cursor()
@@ -34,11 +39,14 @@ for e in ejercicios:
     imagenes = json.dumps(e.get("images", []))
 
     # Insertar ejercicio
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT IGNORE INTO ejercicios 
         (idEjercicio, nombreEj, tipo, equipamiento, nivel, instrucciones, imagenes)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, (ej_id, nombre, categoria, equipamiento, nivel, instrucciones, imagenes))
+        """,
+        (ej_id, nombre, categoria, equipamiento, nivel, instrucciones, imagenes),
+    )
 
     # Insertar músculos y relaciones
     primary = e.get("primaryMuscles", [])
@@ -46,29 +54,44 @@ for e in ejercicios:
 
     for musculo in primary:
         if musculo not in musculos_insertados:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT IGNORE INTO musculos (idMusculo, nombreMusc, grupo_muscular)
                 VALUES (%s, %s, %s)
-            """, (musculo, musculo, "primary"))
+                """,
+                (musculo, musculo, "primary"),
+            )
             musculos_insertados.add(musculo)
-        cursor.execute("""
+
+        cursor.execute(
+            """
             INSERT IGNORE INTO ejercicio_musculo (idEjercicio, idMusculo, rol)
             VALUES (%s, %s, %s)
-        """, (ej_id, musculo, 1))  # rol 1 = primario
+            """,
+            (ej_id, musculo, 1),
+        )  # rol 1 = primario
 
     for musculo in secondary:
         if musculo not in musculos_insertados:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT IGNORE INTO musculos (idMusculo, nombreMusc, grupo_muscular)
                 VALUES (%s, %s, %s)
-            """, (musculo, musculo, "secondary"))
+                """,
+                (musculo, musculo, "secondary"),
+            )
             musculos_insertados.add(musculo)
-        cursor.execute("""
+
+        cursor.execute(
+            """
             INSERT IGNORE INTO ejercicio_musculo (idEjercicio, idMusculo, rol)
             VALUES (%s, %s, %s)
-        """, (ej_id, musculo, 2))  # rol 2 = secundario
+            """,
+            (ej_id, musculo, 2),
+        )  # rol 2 = secundario
 
 conn.commit()
 cursor.close()
 conn.close()
 print(f"✅ {len(ejercicios)} ejercicios importados correctamente")
+
