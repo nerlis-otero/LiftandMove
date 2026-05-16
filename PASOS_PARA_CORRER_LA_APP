@@ -1,0 +1,9 @@
+PASOS PARA QUE LA APP LES CORRA, SEGUIR AL PIE DE LA LETRA
+
+1. Clonar el repo
+2. Renombrar .env.example → .env
+3. Abrir .env y poner su contraseña de MySQL
+4. Correr basededatos.sql en su MySQL Workbench
+5. pip install -r requirements.txt
+6. python import_exercises.py
+7. uvicorn main:app --reload --host 0.0.0.0 --port 8000
