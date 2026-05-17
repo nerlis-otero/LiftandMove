@@ -2,8 +2,20 @@ PASOS PARA QUE LA APP LES CORRA, SEGUIR AL PIE DE LA LETRA
 
 1. Clonar el repo
 2. Renombrar .env.example → .env
-3. Abrir .env y poner su contraseña de MySQL
+3. Abrir .env y poner su contraseña de MySQL (no se te olvide guardar los cambios con ctrl + s)
 4. Correr basededatos.sql en su MySQL Workbench
-5. pip install -r requirements.txt
-6. python import_exercises.py
-7. uvicorn main:app --reload --host 0.0.0.0 --port 8000
+5. en terminal correr:
+cd back 
+pip install -r requirements.txt
+6. en la misma terminal anterior correr:
+python import_exercises.py
+7. en la misma terminal anterior correr:
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+8. para ver la api funcionando, correr desde el navegador con: http://localhost:8000/docs
+9. abrir nueva terminal y correr:
+cd front
+flutter pub get
+10. en la misma terminal anterior correr:
+flutter run
+elegir desde donde lo quieres correr: emulador, dispositivo fisico, navegador...
+Y LISTO, YA DEBERIA CORRER LA APP SIN PROBLEMA
