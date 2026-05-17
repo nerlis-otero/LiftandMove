@@ -9,3 +9,4 @@ static const bool _usePhysicalDevice = true;
 Sí se desea correr en Web/Emuladores
 - En front/lib/core/api_config revisar que se cumpla:
 static const bool _usePhysicalDevice = false; 
+
