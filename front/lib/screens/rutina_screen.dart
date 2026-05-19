@@ -160,7 +160,7 @@ class _RutinaScreenState extends State<RutinaScreen> {
       );
 
       if (response.statusCode == 200) {
-        _snack('¡Rutina guardada! 💪', color: Colors.green);
+        _snack('¡Rutina guardada!', color: Colors.green);
         Navigator.pop(context);
       } else {
         final err = json.decode(response.body);
@@ -380,7 +380,7 @@ class _RutinaScreenState extends State<RutinaScreen> {
                                     child: Image.network(
                                       'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${sel['idEjercicio'].toString().trim().replaceAll(' ', '_')}/0.jpg',
                                       fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => Container(
+                                      errorBuilder: (_, _, _) => Container(
                                         color: Colors.grey[200],
                                         child: const Center(
                                           child: Icon(

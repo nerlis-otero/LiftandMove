@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
-// Asegúrate de importar la configuración de tu API aquí
-// import 'package:flutter_app_liftmove/core/config/api_config.dart';
+import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
+import 'package:flutter_app_liftmove/core/api_config.dart';
 
 class DetalleRutinaScreen extends StatefulWidget {
-  final int idPlantilla;
+  final String idPlantilla;
   final String nombreRutina;
 
   const DetalleRutinaScreen({
@@ -29,12 +29,70 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
     _obtenerDetalleRutina();
   }
 
+  Future<void> _eliminarRutina() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Eliminar rutina?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/rutinas/${widget.idPlantilla}',
+      );
+      final response = await http.delete(url);
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Rutina eliminada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true); // Regresa a la pantalla anterior
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al eliminar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _obtenerDetalleRutina() async {
+    print('🔍 idPlantilla recibido: ${widget.idPlantilla}'); // 👈
+    print('🔍 URL: ${ApiConfig.baseUrl}/rutinas/detalle/${widget.idPlantilla}');
     try {
       // Reemplaza con tu variable global ApiConfig.baseUrl si la tienes activa.
       // Por ahora dejamos fija la IP dinámica .75 que usamos hoy
       final url = Uri.parse(
-        'http://172.18.10.139:8000/rutinas/detalle/${widget.idPlantilla}',
+        '${ApiConfig.baseUrl}/rutinas/detalle/${widget.idPlantilla}',
       );
       final response = await http.get(url);
 
@@ -63,6 +121,12 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       appBar: AppBar(
         title: Text(widget.nombreRutina.toUpperCase()),
         backgroundColor: AppColors.oceanBlue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.white),
+            onPressed: _eliminarRutina,
+          ),
+        ],
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())

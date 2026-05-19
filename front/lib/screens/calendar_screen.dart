@@ -192,11 +192,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               // 🟢 AGREGAMOS ESTE bloque onTap AQUÍ:
                               // 🟢 BUSCA EL ONTAP QUE METIMOS EN EL CALENDAR Y DÉJALO ASÍ:
                               onTap: () {
-                                // Solución definitiva para el tipo de dato
-                                final idRaw = rutina['idPlantilla'];
-                                final int idLimpio = idRaw is int
-                                    ? idRaw
-                                    : (int.tryParse(idRaw.toString()) ?? 0);
+                                final String idLimpio = rutina['idPlantilla']
+                                    .toString();
 
                                 Navigator.push(
                                   context,

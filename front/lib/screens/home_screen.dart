@@ -62,8 +62,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends StatefulWidget {
   const _HomeContent();
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  late Future<List<dynamic>> _rutinasHoy;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarRutinas();
+  }
+
+  Future<void> _cargarRutinas() {
+    _rutinasHoy = () async {
+      try {
+        final idUsu = await AuthService().getNombre();
+        if (idUsu == null) return [];
+        final fechaHoy = DateTime.now().toString().split(' ')[0];
+        final url = Uri.parse(
+          '${ApiConfig.baseUrl}/rutinas/$idUsu?fecha=$fechaHoy',
+        );
+        final response = await http.get(url);
+        if (response.statusCode == 200) {
+          return json.decode(response.body) as List<dynamic>;
+        }
+      } catch (e) {
+        print('Error cargando rutinas en Home: $e');
+      }
+      return [];
+    }();
+    return _rutinasHoy;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,11 +144,14 @@ class _HomeContent extends StatelessWidget {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => RutinaScreen()),
                       );
+                      setState(() {
+                        _cargarRutinas(); // 👈 recarga al volver de registrar
+                      });
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Registrar Rutina'),
@@ -133,26 +170,7 @@ class _HomeContent extends StatelessWidget {
                 const SizedBox(height: 30),
                 Expanded(
                   child: FutureBuilder<List<dynamic>>(
-                    future: (() async {
-                      try {
-                        final idUsu = await AuthService().getNombre();
-                        if (idUsu == null) return [];
-                        final fechaHoy = DateTime.now().toString().split(
-                          ' ',
-                        )[0]; // YYYY-MM-DD
-
-                        final url = Uri.parse(
-                          '${ApiConfig.baseUrl}/rutinas/$idUsu?fecha=$fechaHoy',
-                        );
-                        final response = await http.get(url);
-                        if (response.statusCode == 200) {
-                          return json.decode(response.body) as List<dynamic>;
-                        }
-                      } catch (e) {
-                        print('Error cargando rutinas en Home: $e');
-                      }
-                      return [];
-                    })(),
+                    future: _rutinasHoy,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -187,6 +205,7 @@ class _HomeContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           ...rutinasHoy.map((rutina) {
+                            print('🔍 Rutina completa: $rutina');
                             return Card(
                               margin: const EdgeInsets.only(bottom: 10),
                               elevation: 2,
@@ -195,14 +214,11 @@ class _HomeContent extends StatelessWidget {
                               ),
                               child: ListTile(
                                 // 🟢 BUSCA EL ONTAP EN EL HOME Y DÉJALO ASÍ:
-                                onTap: () {
-                                  // Solución definitiva para el tipo de dato
-                                  final idRaw = rutina['idPlantilla'];
-                                  final int idLimpio = idRaw is int
-                                      ? idRaw
-                                      : (int.tryParse(idRaw.toString()) ?? 0);
+                                onTap: () async {
+                                  final String idLimpio = rutina['idPlantilla']
+                                      .toString();
 
-                                  Navigator.push(
+                                  final eliminado = await Navigator.push<bool>(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => DetalleRutinaScreen(
@@ -212,6 +228,11 @@ class _HomeContent extends StatelessWidget {
                                       ),
                                     ),
                                   );
+                                  if (eliminado == true) {
+                                    setState(() {
+                                      _cargarRutinas();
+                                    });
+                                  }
                                 },
                                 leading: Container(
                                   width: 40,
@@ -241,7 +262,7 @@ class _HomeContent extends StatelessWidget {
                                 trailing: const Icon(Icons.chevron_right),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       );
                     },
