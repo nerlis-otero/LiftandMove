@@ -34,7 +34,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       // Reemplaza con tu variable global ApiConfig.baseUrl si la tienes activa.
       // Por ahora dejamos fija la IP dinámica .75 que usamos hoy
       final url = Uri.parse(
-        'http://192.168.1.75:8000/rutinas/detalle/${widget.idPlantilla}',
+        'http://172.18.10.139:8000/rutinas/detalle/${widget.idPlantilla}',
       );
       final response = await http.get(url);
 

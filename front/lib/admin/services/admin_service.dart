@@ -19,7 +19,7 @@ class AdminService {
       Uri.parse('${ApiConfig.baseUrl}/admin/usuarios'),
       headers: {'Authorization': 'Bearer $token'},
     );
-    if(response.statusCode == 200) {
+    if (response.statusCode == 200) {
       return List<Map<String, dynamic>>.from(jsonDecode(response.body));
     }
     throw Exception('Error al cargar usuarios');
@@ -27,9 +27,11 @@ class AdminService {
 
   static Future<void> eliminarUsuario(String idUsu) async {
     final token = await _getToken();
-    await http.delete(
+    print('TOKEN AL ELIMINAR: $token');
+    final response = await http.delete(
       Uri.parse('${ApiConfig.baseUrl}/admin/usuarios/$idUsu'),
       headers: {'Authorization': 'Bearer $token'},
     );
+    print('STATUS: ${response.statusCode}');
   }
 }

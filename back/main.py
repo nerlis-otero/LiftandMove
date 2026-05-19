@@ -135,7 +135,7 @@ app = FastAPI(title="LiftMove API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -266,9 +266,31 @@ def admin_eliminar_usuario(idUsu: str, admin: UsuarioActual = Depends(get_admin_
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
+            # 1. Primero eliminar ejercicios de las rutinas del usuario
+            cursor.execute("""
+                DELETE re FROM rutina_ejercicio re
+                INNER JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                WHERE rp.idUsu = %s
+            """, (idUsu,))
+            
+            # 2. Eliminar días de las rutinas del usuario
+            cursor.execute("""
+                DELETE rd FROM rutina_dias rd
+                INNER JOIN rutina_plantilla rp ON rd.idPlantilla = rp.idPlantilla
+                WHERE rp.idUsu = %s
+            """, (idUsu,))
+            
+            # 3. Eliminar las plantillas de rutina
+            cursor.execute("DELETE FROM rutina_plantilla WHERE idUsu = %s", (idUsu,))
+            
+            # 4. Ahora sí eliminar el usuario
             cursor.execute("DELETE FROM usuarios WHERE idUsu = %s", (idUsu,))
+            
             connection.commit()
             return {"success": True, "message": "Usuario eliminado exitosamente"}
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         connection.close()
 
