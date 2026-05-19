@@ -5,7 +5,7 @@ class ApiConfig {
   static const bool _usePhysicalDevice = true;
 
   // IP
-  static const String _myIP = "192.168.1.65";
+  static const String _myIP = "192.168.1.60";
 
   static String get baseUrl {
     // WEB

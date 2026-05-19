@@ -3,6 +3,12 @@ import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
 import 'package:flutter_app_liftmove/core/theme/widgets/customs_bg.dart';
 import 'package:flutter_app_liftmove/screens/calendar_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_app_liftmove/screens/rutina_screen.dart';
+import 'package:flutter_app_liftmove/screens/detalle_rutina_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
+import 'package:flutter_app_liftmove/core/api_config.dart'; // O la ruta exacta de tu ApiConfig
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -104,7 +110,12 @@ class _HomeContent extends StatelessWidget {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => RutinaScreen()),
+                      );
+                    },
                     icon: const Icon(Icons.add),
                     label: const Text('Registrar Rutina'),
                     style: ElevatedButton.styleFrom(
@@ -117,6 +128,126 @@ class _HomeContent extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // 🟢 LO NUEVO EMPIEZA AQUÍ: Justo debajo del botón de registrar
+                const SizedBox(height: 30),
+                Expanded(
+                  child: FutureBuilder<List<dynamic>>(
+                    future: (() async {
+                      try {
+                        final idUsu = await AuthService().getNombre();
+                        if (idUsu == null) return [];
+                        final fechaHoy = DateTime.now().toString().split(
+                          ' ',
+                        )[0]; // YYYY-MM-DD
+
+                        final url = Uri.parse(
+                          '${ApiConfig.baseUrl}/rutinas/$idUsu?fecha=$fechaHoy',
+                        );
+                        final response = await http.get(url);
+                        if (response.statusCode == 200) {
+                          return json.decode(response.body) as List<dynamic>;
+                        }
+                      } catch (e) {
+                        print('Error cargando rutinas en Home: $e');
+                      }
+                      return [];
+                    })(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      final rutinasHoy = snapshot.data ?? [];
+
+                      if (rutinasHoy.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.only(top: 20),
+                          child: Text(
+                            '¡Hoy toca descanso! 💤',
+                            style: TextStyle(
+                              color: AppColors.darkPurple,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        children: [
+                          const Text(
+                            'Tus rutinas de hoy:',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkPurple,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...rutinasHoy.map((rutina) {
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                // 🟢 BUSCA EL ONTAP EN EL HOME Y DÉJALO ASÍ:
+                                onTap: () {
+                                  // Solución definitiva para el tipo de dato
+                                  final idRaw = rutina['idPlantilla'];
+                                  final int idLimpio = idRaw is int
+                                      ? idRaw
+                                      : (int.tryParse(idRaw.toString()) ?? 0);
+
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => DetalleRutinaScreen(
+                                        idPlantilla: idLimpio,
+                                        nombreRutina:
+                                            rutina['nombre'] ?? 'Sin nombre',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                leading: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.oceanBlue.withOpacity(
+                                      0.15,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.fitness_center,
+                                    color: AppColors.oceanBlue,
+                                    size: 20,
+                                  ),
+                                ),
+                                title: Text(
+                                  rutina['nombre'] ?? 'Sin nombre',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${rutina['total_ejercicios']} ejercicio(s)',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                trailing: const Icon(Icons.chevron_right),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                // 🟢 AQUÍ TERMINA LO NUEVO
               ],
             ),
           ),
