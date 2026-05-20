@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
 import 'package:flutter_app_liftmove/core/api_config.dart'; // O la ruta exacta de tu ApiConfig
+import 'package:flutter_app_liftmove/screens/perfil_screen.dart';
+import 'package:flutter_app_liftmove/screens/stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,8 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const _HomeContent(),
     const CalendarScreen(),
-    const Center(child: Text('Stats')),
-    const Center(child: Text('Perfil')),
+    const StatsScreen(),
+    const PerfilScreen(),
   ];
 
   @override
@@ -150,7 +152,7 @@ class _HomeContentState extends State<_HomeContent> {
                         MaterialPageRoute(builder: (context) => RutinaScreen()),
                       );
                       setState(() {
-                        _cargarRutinas(); // 👈 recarga al volver de registrar
+                        _cargarRutinas();
                       });
                     },
                     icon: const Icon(Icons.add),
@@ -182,7 +184,7 @@ class _HomeContentState extends State<_HomeContent> {
                         return const Padding(
                           padding: EdgeInsets.only(top: 20),
                           child: Text(
-                            '¡Hoy toca descanso! 💤',
+                            '¡Hoy toca descanso!',
                             style: TextStyle(
                               color: AppColors.darkPurple,
                               fontSize: 16,

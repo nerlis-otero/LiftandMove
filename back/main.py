@@ -145,10 +145,18 @@ def root():
     return {"message": "API funcionando correctamente"}
 
 
-@app.get("/me", response_model=UsuarioActual)
+@app.get("/me")
 def quien_soy(usuario: UsuarioActual = Depends(get_usuario_actual)):
-
-    return usuario
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT idUsu, nombreUsu, correoUsu, sexo, altura_cm, peso, objetivo_entreno, esAdmin FROM usuarios WHERE idUsu = %s",
+                (usuario.idUsu,)
+            )
+            return cursor.fetchone()
+    finally:
+        connection.close()
 
 @app.post("/register")
 def register(data: UserDataRegister) -> Any:
@@ -556,5 +564,159 @@ def eliminar_rutina(idPlantilla: str):
             cursor.execute("DELETE FROM rutina_plantilla WHERE idPlantilla = %s", (idPlantilla,))
             connection.commit()
             return {"success": True}
+    finally:
+        connection.close()
+
+# ── Modelos para metas ────────────────────────────────────────────────────────
+class MetaRequest(BaseModel):
+    campo: str
+    valor: float
+
+@app.get("/stats/{idUsu}")
+def get_stats(idUsu: str, usuario: UsuarioActual = Depends(get_usuario_actual)):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            # Datos del usuario
+            cursor.execute("""
+                SELECT peso, objetivo_entreno, peso_objetivo,
+                       meta_series_semanales, meta_peso_maximo, meta_dias_semana
+                FROM usuarios WHERE idUsu = %s
+            """, (idUsu,))
+            usu = cursor.fetchone()
+
+            # Total rutinas
+            cursor.execute("""
+                SELECT COUNT(DISTINCT idPlantilla) as total
+                FROM rutina_plantilla WHERE idUsu = %s
+            """, (idUsu,))
+            total_rutinas = cursor.fetchone()["total"]
+
+            # Días activos esta semana
+            cursor.execute("""
+                SELECT COUNT(DISTINCT rd.dia_semana) as dias
+                FROM rutina_plantilla rp
+                JOIN rutina_dias rd ON rp.idPlantilla = rd.idPlantilla
+                WHERE rp.idUsu = %s
+                  AND rp.fecha_inicio <= CURDATE()
+                  AND rp.fecha_fin >= CURDATE()
+            """, (idUsu,))
+            dias_semana = cursor.fetchone()["dias"]
+
+            # Series totales esta semana
+            cursor.execute("""
+                SELECT COALESCE(SUM(re.series), 0) as total_series
+                FROM rutina_ejercicio re
+                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                JOIN rutina_dias rd ON rp.idPlantilla = rd.idPlantilla
+                WHERE rp.idUsu = %s
+                  AND rp.fecha_inicio <= CURDATE()
+                  AND rp.fecha_fin >= CURDATE()
+            """, (idUsu,))
+            series_semana = cursor.fetchone()["total_series"]
+
+            # Peso máximo levantado
+            cursor.execute("""
+                SELECT COALESCE(MAX(re.peso_kg), 0) as peso_max
+                FROM rutina_ejercicio re
+                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                WHERE rp.idUsu = %s AND re.peso_kg > 0
+            """, (idUsu,))
+            peso_max = cursor.fetchone()["peso_max"]
+
+            # Ejercicios por tipo
+            cursor.execute("""
+                SELECT e.tipo, COUNT(*) as total
+                FROM rutina_ejercicio re
+                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                JOIN ejercicios e ON re.idEjercicio = e.idEjercicio
+                WHERE rp.idUsu = %s
+                GROUP BY e.tipo ORDER BY total DESC
+            """, (idUsu,))
+            por_tipo = cursor.fetchall()
+
+            return {
+                "peso_actual": usu["peso"],
+                "objetivo_entreno": usu["objetivo_entreno"],
+                "peso_objetivo": usu["peso_objetivo"],
+                "meta_series_semanales": usu["meta_series_semanales"],
+                "meta_peso_maximo": usu["meta_peso_maximo"],
+                "meta_dias_semana": usu["meta_dias_semana"],
+                "total_rutinas": total_rutinas,
+                "dias_semana_activos": dias_semana,
+                "series_esta_semana": int(series_semana),
+                "peso_max_levantado": float(peso_max),
+                "por_tipo": por_tipo,
+            }
+    finally:
+        connection.close()
+
+
+@app.patch("/stats/{idUsu}/meta")
+def guardar_meta(idUsu: str, data: MetaRequest, usuario: UsuarioActual = Depends(get_usuario_actual)):
+    campos_permitidos = [
+        "peso_objetivo",
+        "meta_series_semanales",
+        "meta_peso_maximo",
+        "meta_dias_semana"
+    ]
+    if data.campo not in campos_permitidos:
+        raise HTTPException(status_code=400, detail="Campo no permitido")
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE usuarios SET {data.campo} = %s WHERE idUsu = %s",
+                (data.valor, idUsu)
+            )
+            connection.commit()
+            return {"success": True}
+    finally:
+        connection.close()
+    
+    # ── Marcar rutina como completada ─────────────────────────────────────────────
+class CompletarRutinaRequest(BaseModel):
+    idUsu: str
+    fecha: str  # "2026-05-19"
+
+@app.post("/rutinas/{idPlantilla}/completar")
+def completar_rutina(idPlantilla: str, data: CompletarRutinaRequest):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            # Si ya existe, la desmarca (toggle)
+            cursor.execute("""
+                SELECT id FROM rutina_completada 
+                WHERE idPlantilla = %s AND fecha = %s
+            """, (idPlantilla, data.fecha))
+            existe = cursor.fetchone()
+
+            if existe:
+                cursor.execute("""
+                    DELETE FROM rutina_completada 
+                    WHERE idPlantilla = %s AND fecha = %s
+                """, (idPlantilla, data.fecha))
+                connection.commit()
+                return {"completada": False}
+            else:
+                cursor.execute("""
+                    INSERT INTO rutina_completada (idPlantilla, idUsu, fecha)
+                    VALUES (%s, %s, %s)
+                """, (idPlantilla, data.idUsu, data.fecha))
+                connection.commit()
+                return {"completada": True}
+    finally:
+        connection.close()
+
+@app.get("/rutinas/{idPlantilla}/completada")
+def verificar_completada(idPlantilla: str, fecha: str):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT id FROM rutina_completada 
+                WHERE idPlantilla = %s AND fecha = %s
+            """, (idPlantilla, fecha))
+            return {"completada": cursor.fetchone() is not None}
     finally:
         connection.close()

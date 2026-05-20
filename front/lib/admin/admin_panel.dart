@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
 import 'guards/admin_guard.dart';
 import 'screens/users_screen.dart';
 
@@ -22,14 +23,23 @@ class _AdminPanelState extends State<AdminPanel> {
   Widget build(BuildContext context) {
     return AdminGuard(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Panel de Administración - Lift&Move'), backgroundColor: const Color(0xFF6200EE),),
+        appBar: AppBar(
+          title: const Text('Panel de Administración - Lift&Move'),
+          backgroundColor: AppColors.blueishPurple,
+        ),
         body: _screens[_selectedIndex],
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Usuarios'),
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people),
+              label: 'Usuarios',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
             // Agrega más ítems para otras funcionalidades
           ],
         ),

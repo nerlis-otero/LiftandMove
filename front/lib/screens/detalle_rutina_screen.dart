@@ -22,19 +22,69 @@ class DetalleRutinaScreen extends StatefulWidget {
 class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
   List<dynamic> _ejercicios = [];
   bool _cargando = true;
+  bool _completada = false;
+  String _fechaHoy = DateTime.now().toIso8601String().split('T')[0];
+  String? _idUsu;
 
   @override
   void initState() {
     super.initState();
     _obtenerDetalleRutina();
+    _verificarCompletada();
+  }
+
+  Future<void> _verificarCompletada() async {
+    _idUsu = await AuthService().getNombre();
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/rutinas/${widget.idPlantilla}/completada?fecha=$_fechaHoy',
+      );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() => _completada = data['completada']);
+      }
+    } catch (e) {
+      debugPrint('Error verificando completada: $e');
+    }
+  }
+
+  Future<void> _toggleCompletar() async {
+    if (_idUsu == null) return;
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/rutinas/${widget.idPlantilla}/completar',
+      );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'idUsu': _idUsu, 'fecha': _fechaHoy}),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() => _completada = data['completada']);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _completada ? 'Rutina completada' : 'Rutina desmarcada',
+              ),
+              backgroundColor: _completada ? Colors.green : Colors.grey,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error completando rutina: $e');
+    }
   }
 
   Future<void> _eliminarRutina() async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Eliminar rutina?'),
-        content: const Text('Esta acción no se puede deshacer.'),
+        title: const Text('Eliminar rutina'),
+        content: const Text('Esta accion no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -65,32 +115,32 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context, true); // Regresa a la pantalla anterior
+          Navigator.pop(context, true);
         }
       } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al eliminar'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al eliminar'),
+          SnackBar(
+            content: Text('Error de conexion: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
   Future<void> _obtenerDetalleRutina() async {
-    print('🔍 idPlantilla recibido: ${widget.idPlantilla}'); // 👈
-    print('🔍 URL: ${ApiConfig.baseUrl}/rutinas/detalle/${widget.idPlantilla}');
     try {
-      // Reemplaza con tu variable global ApiConfig.baseUrl si la tienes activa.
-      // Por ahora dejamos fija la IP dinámica .75 que usamos hoy
       final url = Uri.parse(
         '${ApiConfig.baseUrl}/rutinas/detalle/${widget.idPlantilla}',
       );
@@ -102,16 +152,10 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
           _cargando = false;
         });
       } else {
-        print('Error en el servidor: ${response.statusCode}');
-        setState(() {
-          _cargando = false;
-        });
+        setState(() => _cargando = false);
       }
     } catch (e) {
-      print('Error de conexión: $e');
-      setState(() {
-        _cargando = false;
-      });
+      setState(() => _cargando = false);
     }
   }
 
@@ -122,6 +166,16 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
         title: Text(widget.nombreRutina.toUpperCase()),
         backgroundColor: AppColors.oceanBlue,
         actions: [
+          IconButton(
+            icon: Icon(
+              _completada ? Icons.check_circle : Icons.check_circle_outline,
+              color: _completada ? Colors.greenAccent : Colors.white,
+            ),
+            onPressed: _toggleCompletar,
+            tooltip: _completada
+                ? 'Marcar como no completada'
+                : 'Marcar como completada',
+          ),
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.white),
             onPressed: _eliminarRutina,
@@ -158,8 +212,6 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-
-                        // Imagen del ejercicio con tu lógica de limpieza de caracteres
                         Container(
                           height: 150,
                           width: double.infinity,
@@ -185,8 +237,6 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Detalles de Sets, Reps y Peso fijados
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
