@@ -219,7 +219,10 @@ class _RutinaScreenState extends State<RutinaScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Registrar Rutina'),
+        title: const Text('Registrar Rutina',
+        style: TextStyle(
+         color: Color.fromARGB(255, 247, 249, 251),)
+         ),
         backgroundColor: AppColors.oceanBlue,
       ),
       body: GestureDetector(

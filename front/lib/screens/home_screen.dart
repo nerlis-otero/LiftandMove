@@ -73,11 +73,97 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   late Future<List<dynamic>> _rutinasHoy;
+  bool _guardandoPeso = false;
 
   @override
   void initState() {
     super.initState();
     _cargarRutinas();
+  }
+
+  Future<void> _mostrarRegistroPeso() async {
+    final controller = TextEditingController();
+    final peso = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Nuevo registro de peso',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkPurple),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Peso actual',
+            suffixText: 'kg',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text.replaceAll(',', '.'));
+              if (val != null && val > 0 && val <= 500) {
+                Navigator.pop(ctx, val);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.berry,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (peso == null || !mounted) return;
+
+    setState(() => _guardandoPeso = true);
+    try {
+      final idUsu = await AuthService().getNombre();
+      final token = await AuthService().getToken();
+      if (idUsu == null || token == null) {
+        _mostrarSnack('Inicia sesión para registrar tu peso', esError: true);
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/usuarios/$idUsu/peso'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'peso_kg': peso}),
+      );
+
+      if (response.statusCode == 200) {
+        _mostrarSnack('Peso registrado: ${peso.toStringAsFixed(1)} kg');
+      } else {
+        final err = json.decode(response.body);
+        _mostrarSnack(err['detail']?.toString() ?? 'Error al guardar', esError: true);
+      }
+    } catch (e) {
+      _mostrarSnack('Error de conexión: $e', esError: true);
+    } finally {
+      if (mounted) setState(() => _guardandoPeso = false);
+    }
+  }
+
+  void _mostrarSnack(String msg, {bool esError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: esError ? Colors.red.shade700 : AppColors.berry,
+      ),
+    );
   }
 
   Future<void> _cargarRutinas() {
@@ -167,9 +253,50 @@ class _HomeContentState extends State<_HomeContent> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                Container(
+                  width: 200,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.berry, AppColors.darkMagenta],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.berry.withOpacity(0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: _guardandoPeso ? null : _mostrarRegistroPeso,
+                    icon: _guardandoPeso
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.monitor_weight_outlined),
+                    label: Text(_guardandoPeso ? 'Guardando...' : 'Registrar Peso'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ),
 
-                // 🟢 LO NUEVO EMPIEZA AQUÍ: Justo debajo del botón de registrar
-                const SizedBox(height: 30),
+                const SizedBox(height: 24),
                 Expanded(
                   child: FutureBuilder<List<dynamic>>(
                     future: _rutinasHoy,

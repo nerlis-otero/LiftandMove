@@ -55,10 +55,25 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       final url = Uri.parse(
         '${ApiConfig.baseUrl}/rutinas/${widget.idPlantilla}/completar',
       );
+      final ejerciciosPayload = _ejercicios
+          .map(
+            (ej) => {
+              'idEjercicio': ej['idEjercicio'],
+              'series': ej['series'] ?? 0,
+              'repeticiones': ej['repeticiones'] ?? 0,
+              'peso_kg': (ej['peso'] as num?)?.toDouble() ?? 0.0,
+            },
+          )
+          .toList();
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'idUsu': _idUsu, 'fecha': _fechaHoy}),
+        body: json.encode({
+          'idUsu': _idUsu,
+          'fecha': _fechaHoy,
+          'ejercicios': ejerciciosPayload,
+        }),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

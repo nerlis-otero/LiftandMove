@@ -84,3 +84,27 @@ constraint MuscEjer_FK foreign key (idMusculo) references musculos(idMusculo)
 );
 
 alter table usuarios add column esAdmin bool not null default false;
+
+-- Metas y peso (ejecutar si la BD ya existía)
+-- ALTER TABLE usuarios ADD COLUMN peso_objetivo DOUBLE NULL;
+-- ALTER TABLE usuarios ADD COLUMN meta_series_semanales INT NULL;
+-- ALTER TABLE usuarios ADD COLUMN meta_peso_maximo DOUBLE NULL;
+-- ALTER TABLE usuarios ADD COLUMN meta_dias_semana INT NULL;
+-- ALTER TABLE medida_corporal ADD UNIQUE KEY uq_usuario_fecha (idUsu, fecha);
+
+-- Historial de cargas al completar rutinas (también se crean automáticamente desde la API)
+-- CREATE TABLE sesion_entreno (
+--   id_sesion VARCHAR(36) NOT NULL PRIMARY KEY,
+--   idUsu VARCHAR(20) NOT NULL,
+--   idPlantilla VARCHAR(36) NOT NULL,
+--   fecha DATE NOT NULL,
+--   UNIQUE KEY uq_sesion_usuario_rutina_fecha (idUsu, idPlantilla, fecha)
+-- );
+-- CREATE TABLE sesion_ejercicio (
+--   id VARCHAR(36) NOT NULL PRIMARY KEY,
+--   id_sesion VARCHAR(36) NOT NULL,
+--   idEjercicio VARCHAR(20) NOT NULL,
+--   series INT NOT NULL DEFAULT 0,
+--   repeticiones INT NOT NULL DEFAULT 0,
+--   peso_kg DOUBLE NOT NULL DEFAULT 0
+-- );

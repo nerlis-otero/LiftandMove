@@ -265,16 +265,6 @@ class _SurveyScreenState extends State<SurveyScreen> {
                           label: "LISTO",
                           isNext: true,
                         )
-                // ← NUEVO: botón en FinalPage para ir al login
-                else if (_currentPage == 6)
-                  NavButton(
-                    onPressed: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    ),
-                    label: "INICIAR SESIÓN",
-                    isNext: true,
-                  )
                 else
                   const SizedBox.shrink(),
               ],

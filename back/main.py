@@ -9,8 +9,8 @@ import pymysql
 import pymysql.cursors
 import bcrypt
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import datetime, timedelta, timezone, date
+from typing import Any, List, Optional
 import os
 from dotenv import load_dotenv
 
@@ -615,86 +615,330 @@ def eliminar_rutina(idPlantilla: str):
     finally:
         connection.close()
 
-# ── Modelos para metas ────────────────────────────────────────────────────────
+# ── Modelos para metas y peso ─────────────────────────────────────────────────
 class MetaRequest(BaseModel):
     campo: str
     valor: float
 
-@app.get("/stats/{idUsu}")
-def get_stats(idUsu: str, usuario: UsuarioActual = Depends(get_usuario_actual)):
+
+class RegistroPesoRequest(BaseModel):
+    peso_kg: float
+    fecha: Optional[str] = None  # yyyy-MM-dd; por defecto hoy
+
+
+def _verificar_propietario(idUsu: str, usuario: UsuarioActual) -> None:
+    if usuario.idUsu != idUsu:
+        raise HTTPException(status_code=403, detail="No autorizado para este usuario")
+
+
+def _asegurar_tabla_medida(cursor) -> None:
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS medida_corporal (
+            id_med VARCHAR(36) NOT NULL PRIMARY KEY,
+            idUsu VARCHAR(20) NOT NULL,
+            fecha DATE NOT NULL,
+            peso_kg DOUBLE,
+            cintura_cm DOUBLE,
+            cadera_cm DOUBLE,
+            pecho_cm DOUBLE,
+            brazo_cm DOUBLE,
+            muslo_cm DOUBLE,
+            es_meta BOOL DEFAULT FALSE,
+            UNIQUE KEY uq_usuario_fecha (idUsu, fecha)
+        )
+    """)
+
+
+def _calcular_racha_entrenamiento(fechas_completadas: List[date]) -> int:
+    if not fechas_completadas:
+        return 0
+    fechas_set = set(fechas_completadas)
+    hoy = date.today()
+    cursor_dia = hoy
+    if cursor_dia not in fechas_set:
+        cursor_dia = hoy - timedelta(days=1)
+        if cursor_dia not in fechas_set:
+            return 0
+    racha = 0
+    while cursor_dia in fechas_set:
+        racha += 1
+        cursor_dia -= timedelta(days=1)
+    return racha
+
+
+def _obtener_historial_peso(cursor, idUsu: str, limite: int = 60) -> List[dict]:
+    try:
+        cursor.execute(
+            """
+            SELECT fecha, peso_kg
+            FROM medida_corporal
+            WHERE idUsu = %s AND peso_kg IS NOT NULL
+            ORDER BY fecha ASC
+            LIMIT %s
+            """,
+            (idUsu, limite),
+        )
+        filas = cursor.fetchall()
+        return [
+            {
+                "fecha": f["fecha"].isoformat()
+                if hasattr(f["fecha"], "isoformat")
+                else str(f["fecha"]),
+                "peso_kg": float(f["peso_kg"]),
+            }
+            for f in filas
+        ]
+    except pymysql.err.ProgrammingError:
+        return []
+
+
+def _obtener_fechas_completadas(cursor, idUsu: str) -> List[date]:
+    try:
+        cursor.execute(
+            """
+            SELECT DISTINCT fecha
+            FROM rutina_completada
+            WHERE idUsu = %s
+            ORDER BY fecha DESC
+            """,
+            (idUsu,),
+        )
+        fechas = []
+        for fila in cursor.fetchall():
+            f = fila["fecha"]
+            if isinstance(f, datetime):
+                fechas.append(f.date())
+            elif isinstance(f, date):
+                fechas.append(f)
+            else:
+                fechas.append(datetime.strptime(str(f)[:10], "%Y-%m-%d").date())
+        return fechas
+    except pymysql.err.ProgrammingError:
+        return []
+
+
+@app.post("/usuarios/{idUsu}/peso")
+def registrar_peso(
+    idUsu: str,
+    data: RegistroPesoRequest,
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    _verificar_propietario(idUsu, usuario)
+
+    if data.peso_kg <= 0 or data.peso_kg > 500:
+        raise HTTPException(status_code=400, detail="Peso inválido (debe ser entre 0 y 500 kg)")
+
+    if data.fecha:
+        try:
+            fecha_registro = datetime.strptime(data.fecha, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Fecha inválida (use yyyy-MM-dd)")
+    else:
+        fecha_registro = date.today()
+
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Datos del usuario
+            _asegurar_tabla_medida(cursor)
+
+            cursor.execute(
+                "SELECT id_med FROM medida_corporal WHERE idUsu = %s AND fecha = %s",
+                (idUsu, fecha_registro),
+            )
+            existente = cursor.fetchone()
+
+            if existente:
+                cursor.execute(
+                    """
+                    UPDATE medida_corporal
+                    SET peso_kg = %s, es_meta = FALSE
+                    WHERE idUsu = %s AND fecha = %s
+                    """,
+                    (data.peso_kg, idUsu, fecha_registro),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO medida_corporal (id_med, idUsu, fecha, peso_kg, es_meta)
+                    VALUES (%s, %s, %s, %s, FALSE)
+                    """,
+                    (str(uuid4()), idUsu, fecha_registro, data.peso_kg),
+                )
+
+            cursor.execute(
+                "UPDATE usuarios SET peso = %s WHERE idUsu = %s",
+                (int(round(data.peso_kg)), idUsu),
+            )
+            connection.commit()
+
+            return {
+                "success": True,
+                "peso_kg": data.peso_kg,
+                "fecha": fecha_registro.isoformat(),
+            }
+    except pymysql.MySQLError as e:
+        raise HTTPException(status_code=500, detail=f"Error al guardar peso: {e}")
+    finally:
+        connection.close()
+
+
+@app.get("/stats/{idUsu}")
+def get_stats(idUsu: str, usuario: UsuarioActual = Depends(get_usuario_actual)):
+    _verificar_propietario(idUsu, usuario)
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT peso, objetivo_entreno, peso_objetivo,
                        meta_series_semanales, meta_peso_maximo, meta_dias_semana
                 FROM usuarios WHERE idUsu = %s
             """, (idUsu,))
             usu = cursor.fetchone()
+            if not usu:
+                raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-            # Total rutinas
-            cursor.execute("""
-                SELECT COUNT(DISTINCT idPlantilla) as total
-                FROM rutina_plantilla WHERE idUsu = %s
-            """, (idUsu,))
-            total_rutinas = cursor.fetchone()["total"]
+            total_rutinas = 0
+            dias_semana = 0
+            series_semana = 0
+            peso_max = 0.0
+            por_tipo: list = []
+            rutinas_completadas_total = 0
+            rutinas_completadas_semana = 0
 
-            # Días activos esta semana
-            cursor.execute("""
-                SELECT COUNT(DISTINCT rd.dia_semana) as dias
-                FROM rutina_plantilla rp
-                JOIN rutina_dias rd ON rp.idPlantilla = rd.idPlantilla
-                WHERE rp.idUsu = %s
-                  AND rp.fecha_inicio <= CURDATE()
-                  AND rp.fecha_fin >= CURDATE()
-            """, (idUsu,))
-            dias_semana = cursor.fetchone()["dias"]
+            try:
+                cursor.execute(
+                    """
+                    SELECT COUNT(DISTINCT idPlantilla) as total
+                    FROM rutina_plantilla WHERE idUsu = %s
+                    """,
+                    (idUsu,),
+                )
+                total_rutinas = int((cursor.fetchone() or {}).get("total") or 0)
+            except pymysql.err.ProgrammingError:
+                pass
 
-            # Series totales esta semana
-            cursor.execute("""
-                SELECT COALESCE(SUM(re.series), 0) as total_series
-                FROM rutina_ejercicio re
-                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
-                JOIN rutina_dias rd ON rp.idPlantilla = rd.idPlantilla
-                WHERE rp.idUsu = %s
-                  AND rp.fecha_inicio <= CURDATE()
-                  AND rp.fecha_fin >= CURDATE()
-            """, (idUsu,))
-            series_semana = cursor.fetchone()["total_series"]
+            try:
+                cursor.execute(
+                    """
+                    SELECT COUNT(DISTINCT rd.dia_semana) as dias
+                    FROM rutina_plantilla rp
+                    JOIN rutina_dias rd ON rp.idPlantilla = rd.idPlantilla
+                    WHERE rp.idUsu = %s
+                      AND rp.fecha_inicio <= CURDATE()
+                      AND rp.fecha_fin >= CURDATE()
+                    """,
+                    (idUsu,),
+                )
+                dias_semana = int((cursor.fetchone() or {}).get("dias") or 0)
+            except pymysql.err.ProgrammingError:
+                pass
 
-            # Peso máximo levantado
-            cursor.execute("""
-                SELECT COALESCE(MAX(re.peso_kg), 0) as peso_max
-                FROM rutina_ejercicio re
-                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
-                WHERE rp.idUsu = %s AND re.peso_kg > 0
-            """, (idUsu,))
-            peso_max = cursor.fetchone()["peso_max"]
+            try:
+                cursor.execute(
+                    """
+                    SELECT COALESCE(SUM(re.series), 0) as total_series
+                    FROM rutina_ejercicio re
+                    JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                    WHERE rp.idUsu = %s
+                      AND rp.fecha_inicio <= CURDATE()
+                      AND rp.fecha_fin >= CURDATE()
+                    """,
+                    (idUsu,),
+                )
+                series_semana = int((cursor.fetchone() or {}).get("total_series") or 0)
+            except pymysql.err.ProgrammingError:
+                pass
 
-            # Ejercicios por tipo
-            cursor.execute("""
-                SELECT e.tipo, COUNT(*) as total
-                FROM rutina_ejercicio re
-                JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
-                JOIN ejercicios e ON re.idEjercicio = e.idEjercicio
-                WHERE rp.idUsu = %s
-                GROUP BY e.tipo ORDER BY total DESC
-            """, (idUsu,))
-            por_tipo = cursor.fetchall()
+            try:
+                cursor.execute(
+                    """
+                    SELECT COALESCE(MAX(re.peso_kg), 0) as peso_max
+                    FROM rutina_ejercicio re
+                    JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                    WHERE rp.idUsu = %s AND re.peso_kg > 0
+                    """,
+                    (idUsu,),
+                )
+                peso_max = float((cursor.fetchone() or {}).get("peso_max") or 0)
+            except pymysql.err.ProgrammingError:
+                pass
+
+            try:
+                cursor.execute(
+                    """
+                    SELECT e.tipo, COUNT(*) as total
+                    FROM rutina_ejercicio re
+                    JOIN rutina_plantilla rp ON re.idPlantilla = rp.idPlantilla
+                    JOIN ejercicios e ON re.idEjercicio = e.idEjercicio
+                    WHERE rp.idUsu = %s
+                    GROUP BY e.tipo ORDER BY total DESC
+                    """,
+                    (idUsu,),
+                )
+                por_tipo = cursor.fetchall() or []
+            except pymysql.err.ProgrammingError:
+                pass
+
+            try:
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as total
+                    FROM rutina_completada
+                    WHERE idUsu = %s
+                    """,
+                    (idUsu,),
+                )
+                rutinas_completadas_total = int(
+                    (cursor.fetchone() or {}).get("total") or 0
+                )
+            except pymysql.err.ProgrammingError:
+                pass
+
+            try:
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as total
+                    FROM rutina_completada
+                    WHERE idUsu = %s
+                      AND fecha >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                    """,
+                    (idUsu,),
+                )
+                rutinas_completadas_semana = int(
+                    (cursor.fetchone() or {}).get("total") or 0
+                )
+            except pymysql.err.ProgrammingError:
+                pass
+
+            historial_peso = _obtener_historial_peso(cursor, idUsu)
+            fechas_completadas = _obtener_fechas_completadas(cursor, idUsu)
+            racha = _calcular_racha_entrenamiento(fechas_completadas)
+
+            peso_actual = float(usu.get("peso") or 0)
+            if historial_peso:
+                peso_actual = historial_peso[-1]["peso_kg"]
+
+            peso_inicial = historial_peso[0]["peso_kg"] if historial_peso else peso_actual
+            variacion_peso = round(peso_actual - peso_inicial, 1) if historial_peso else 0.0
 
             return {
-                "peso_actual": usu["peso"],
-                "objetivo_entreno": usu["objetivo_entreno"],
-                "peso_objetivo": usu["peso_objetivo"],
-                "meta_series_semanales": usu["meta_series_semanales"],
-                "meta_peso_maximo": usu["meta_peso_maximo"],
-                "meta_dias_semana": usu["meta_dias_semana"],
+                "peso_actual": peso_actual,
+                "peso_inicial": peso_inicial,
+                "variacion_peso": variacion_peso,
+                "historial_peso": historial_peso,
+                "objetivo_entreno": usu.get("objetivo_entreno") or "",
+                "peso_objetivo": usu.get("peso_objetivo"),
+                "meta_series_semanales": usu.get("meta_series_semanales"),
+                "meta_peso_maximo": usu.get("meta_peso_maximo"),
+                "meta_dias_semana": usu.get("meta_dias_semana"),
                 "total_rutinas": total_rutinas,
                 "dias_semana_activos": dias_semana,
-                "series_esta_semana": int(series_semana),
-                "peso_max_levantado": float(peso_max),
+                "series_esta_semana": series_semana,
+                "peso_max_levantado": peso_max,
                 "por_tipo": por_tipo,
+                "racha_entrenamiento": racha,
+                "rutinas_completadas_total": rutinas_completadas_total,
+                "rutinas_completadas_semana": rutinas_completadas_semana,
             }
     finally:
         connection.close()
@@ -702,6 +946,7 @@ def get_stats(idUsu: str, usuario: UsuarioActual = Depends(get_usuario_actual)):
 
 @app.patch("/stats/{idUsu}/meta")
 def guardar_meta(idUsu: str, data: MetaRequest, usuario: UsuarioActual = Depends(get_usuario_actual)):
+    _verificar_propietario(idUsu, usuario)
     campos_permitidos = [
         "peso_objetivo",
         "meta_series_semanales",
@@ -722,37 +967,221 @@ def guardar_meta(idUsu: str, data: MetaRequest, usuario: UsuarioActual = Depends
     finally:
         connection.close()
     
-    # ── Marcar rutina como completada ─────────────────────────────────────────────
+    # ── Marcar rutina como completada + historial de cargas ─────────────────────
+class EjercicioSesion(BaseModel):
+    idEjercicio: str
+    series: int
+    repeticiones: int
+    peso_kg: float = 0.0
+
+
 class CompletarRutinaRequest(BaseModel):
     idUsu: str
     fecha: str  # "2026-05-19"
+    ejercicios: Optional[List[EjercicioSesion]] = None
+
+
+def _asegurar_tablas_sesion(cursor) -> None:
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sesion_entreno (
+            id_sesion VARCHAR(36) NOT NULL PRIMARY KEY,
+            idUsu VARCHAR(20) NOT NULL,
+            idPlantilla VARCHAR(36) NOT NULL,
+            fecha DATE NOT NULL,
+            UNIQUE KEY uq_sesion_usuario_rutina_fecha (idUsu, idPlantilla, fecha)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sesion_ejercicio (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            id_sesion VARCHAR(36) NOT NULL,
+            idEjercicio VARCHAR(20) NOT NULL,
+            series INT NOT NULL DEFAULT 0,
+            repeticiones INT NOT NULL DEFAULT 0,
+            peso_kg DOUBLE NOT NULL DEFAULT 0,
+            KEY idx_sesion (id_sesion),
+            KEY idx_ejercicio (idEjercicio)
+        )
+    """)
+
+
+def _eliminar_sesion(cursor, idPlantilla: str, fecha: str) -> None:
+    cursor.execute(
+        "SELECT id_sesion FROM sesion_entreno WHERE idPlantilla = %s AND fecha = %s",
+        (idPlantilla, fecha),
+    )
+    filas = cursor.fetchall()
+    for fila in filas:
+        id_sesion = fila["id_sesion"]
+        cursor.execute("DELETE FROM sesion_ejercicio WHERE id_sesion = %s", (id_sesion,))
+    cursor.execute(
+        "DELETE FROM sesion_entreno WHERE idPlantilla = %s AND fecha = %s",
+        (idPlantilla, fecha),
+    )
+
+
+def _guardar_sesion_cargas(
+    cursor,
+    idUsu: str,
+    idPlantilla: str,
+    fecha: str,
+    ejercicios: List[EjercicioSesion],
+) -> None:
+    _asegurar_tablas_sesion(cursor)
+    _eliminar_sesion(cursor, idPlantilla, fecha)
+
+    if not ejercicios:
+        return
+
+    id_sesion = str(uuid4())
+    cursor.execute(
+        """
+        INSERT INTO sesion_entreno (id_sesion, idUsu, idPlantilla, fecha)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (id_sesion, idUsu, idPlantilla, fecha),
+    )
+    for ej in ejercicios:
+        cursor.execute(
+            """
+            INSERT INTO sesion_ejercicio
+                (id, id_sesion, idEjercicio, series, repeticiones, peso_kg)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                str(uuid4()),
+                id_sesion,
+                ej.idEjercicio,
+                ej.series,
+                ej.repeticiones,
+                ej.peso_kg,
+            ),
+        )
+
 
 @app.post("/rutinas/{idPlantilla}/completar")
 def completar_rutina(idPlantilla: str, data: CompletarRutinaRequest):
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
-            # Si ya existe, la desmarca (toggle)
             cursor.execute("""
-                SELECT id FROM rutina_completada 
+                SELECT id FROM rutina_completada
                 WHERE idPlantilla = %s AND fecha = %s
             """, (idPlantilla, data.fecha))
             existe = cursor.fetchone()
 
             if existe:
                 cursor.execute("""
-                    DELETE FROM rutina_completada 
+                    DELETE FROM rutina_completada
                     WHERE idPlantilla = %s AND fecha = %s
                 """, (idPlantilla, data.fecha))
+                _eliminar_sesion(cursor, idPlantilla, data.fecha)
                 connection.commit()
                 return {"completada": False}
-            else:
-                cursor.execute("""
-                    INSERT INTO rutina_completada (idPlantilla, idUsu, fecha)
-                    VALUES (%s, %s, %s)
-                """, (idPlantilla, data.idUsu, data.fecha))
-                connection.commit()
-                return {"completada": True}
+
+            ejercicios = data.ejercicios
+            if not ejercicios:
+                cursor.execute(
+                    """
+                    SELECT idEjercicio, series, repeticiones, peso_kg
+                    FROM rutina_ejercicio
+                    WHERE idPlantilla = %s
+                    ORDER BY orden ASC
+                    """,
+                    (idPlantilla,),
+                )
+                filas = cursor.fetchall()
+                ejercicios = [
+                    EjercicioSesion(
+                        idEjercicio=f["idEjercicio"],
+                        series=int(f["series"] or 0),
+                        repeticiones=int(f["repeticiones"] or 0),
+                        peso_kg=float(f["peso_kg"] or 0),
+                    )
+                    for f in filas
+                ]
+
+            cursor.execute("""
+                INSERT INTO rutina_completada (idPlantilla, idUsu, fecha)
+                VALUES (%s, %s, %s)
+            """, (idPlantilla, data.idUsu, data.fecha))
+
+            _guardar_sesion_cargas(
+                cursor, data.idUsu, idPlantilla, data.fecha, ejercicios or []
+            )
+            connection.commit()
+            return {"completada": True}
+    except pymysql.MySQLError as e:
+        raise HTTPException(status_code=500, detail=f"Error al completar rutina: {e}")
+    finally:
+        connection.close()
+
+
+@app.get("/usuarios/{idUsu}/ejercicios-historial")
+def ejercicios_con_historial(
+    idUsu: str, usuario: UsuarioActual = Depends(get_usuario_actual)
+):
+    _verificar_propietario(idUsu, usuario)
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            _asegurar_tablas_sesion(cursor)
+            connection.commit()
+            cursor.execute(
+                """
+                SELECT DISTINCT se.idEjercicio, e.nombreEj
+                FROM sesion_ejercicio se
+                JOIN sesion_entreno s ON se.id_sesion = s.id_sesion
+                JOIN ejercicios e ON se.idEjercicio = e.idEjercicio
+                WHERE s.idUsu = %s
+                ORDER BY e.nombreEj
+                """,
+                (idUsu,),
+            )
+            return cursor.fetchall()
+    except pymysql.err.ProgrammingError:
+        return []
+    finally:
+        connection.close()
+
+
+@app.get("/usuarios/{idUsu}/historial-cargas")
+def historial_cargas(
+    idUsu: str,
+    idEjercicio: str,
+    usuario: UsuarioActual = Depends(get_usuario_actual),
+):
+    _verificar_propietario(idUsu, usuario)
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT s.fecha, se.peso_kg, se.series, se.repeticiones
+                FROM sesion_ejercicio se
+                JOIN sesion_entreno s ON se.id_sesion = s.id_sesion
+                WHERE s.idUsu = %s AND se.idEjercicio = %s
+                ORDER BY s.fecha ASC
+                """,
+                (idUsu, idEjercicio),
+            )
+            historial = []
+            for f in cursor.fetchall():
+                fecha = f["fecha"]
+                historial.append({
+                    "fecha": fecha.isoformat()
+                    if hasattr(fecha, "isoformat")
+                    else str(fecha),
+                    "peso_kg": float(f["peso_kg"] or 0),
+                    "series": int(f["series"] or 0),
+                    "repeticiones": int(f["repeticiones"] or 0),
+                    "volumen": int(f["series"] or 0)
+                    * int(f["repeticiones"] or 0)
+                    * float(f["peso_kg"] or 0),
+                })
+            return historial
+    except pymysql.err.ProgrammingError:
+        return []
     finally:
         connection.close()
 
