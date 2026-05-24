@@ -346,6 +346,54 @@ def buscar_ejercicios(q: str):
     finally:
         connection.close()
 
+@app.get("/ejercicios/por-musculo")
+def ejercicios_por_musculo(musculo: str, limit: int = 30):
+    """Ejercicios cuyo músculo primario coincide (rol = 1 en ejercicio_musculo)."""
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DISTINCT e.idEjercicio, e.nombreEj, e.tipo, e.equipamiento, e.nivel
+                FROM ejercicios e
+                JOIN ejercicio_musculo em ON e.idEjercicio = em.idEjercicio
+                JOIN musculos m ON em.idMusculo = m.idMusculo
+                WHERE em.rol = 1 AND m.idMusculo = %s
+                ORDER BY e.nombreEj
+                LIMIT %s
+                """,
+                (musculo, limit),
+            )
+            return cursor.fetchall()
+    finally:
+        connection.close()
+
+@app.get("/ejercicios/por-musculos")
+def ejercicios_por_musculos(musculos: str, limit: int = 40):
+    """Varios músculos primarios separados por coma (ej. espalda,dorsales)."""
+    nombres = [m.strip() for m in musculos.split(",") if m.strip()]
+    if not nombres:
+        raise HTTPException(status_code=400, detail="Indica al menos un músculo")
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            placeholders = ", ".join(["%s"] * len(nombres))
+            cursor.execute(
+                f"""
+                SELECT DISTINCT e.idEjercicio, e.nombreEj, e.tipo, e.equipamiento, e.nivel
+                FROM ejercicios e
+                JOIN ejercicio_musculo em ON e.idEjercicio = em.idEjercicio
+                JOIN musculos m ON em.idMusculo = m.idMusculo
+                WHERE em.rol = 1 AND m.idMusculo IN ({placeholders})
+                ORDER BY e.nombreEj
+                LIMIT %s
+                """,
+                (*nombres, limit),
+            )
+            return cursor.fetchall()
+    finally:
+        connection.close()
+
 @app.get("/ejercicios/{ejercicio_id}")
 def get_ejercicio(ejercicio_id: str):
     connection = get_db_connection()

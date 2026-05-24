@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
 import 'package:flutter_app_liftmove/core/api_config.dart';
 import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
+import 'package:flutter_app_liftmove/widgets/body_muscle_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -15,10 +16,11 @@ class RutinaScreen extends StatefulWidget {
 
 class _RutinaScreenState extends State<RutinaScreen> {
   final TextEditingController _nombreRutinaController = TextEditingController();
-  final TextEditingController _buscadorController = TextEditingController();
 
   List<dynamic> _ejerciciosEncontrados = [];
   final List<dynamic> _ejerciciosSeleccionados = [];
+  String? _musculoSeleccionadoId;
+  bool _cargandoEjercicios = false;
 
   final Set<int> _diasSeleccionados = {};
   final List<String> _nombresDias = [
@@ -48,20 +50,52 @@ class _RutinaScreenState extends State<RutinaScreen> {
     setState(() => _idUsu = nombre);
   }
 
-  Future<void> _buscarEjercicios(String query) async {
-    if (query.isEmpty) {
-      setState(() => _ejerciciosEncontrados = []);
-      return;
-    }
+  Future<void> _cargarEjerciciosPorMusculo(MuscleRegion region) async {
+    setState(() {
+      _musculoSeleccionadoId = region.id;
+      _cargandoEjercicios = true;
+      _ejerciciosEncontrados = [];
+    });
+
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/ejercicios/buscar?q=$query');
+      final Uri url;
+      if (region.primaryMuscles.length == 1) {
+        final musculo = Uri.encodeQueryComponent(region.primaryMuscles.first);
+        url = Uri.parse(
+          '${ApiConfig.baseUrl}/ejercicios/por-musculo?musculo=$musculo&limit=40',
+        );
+      } else {
+        final musculos = region.primaryMuscles
+            .map(Uri.encodeQueryComponent)
+            .join(',');
+        url = Uri.parse(
+          '${ApiConfig.baseUrl}/ejercicios/por-musculos?musculos=$musculos&limit=40',
+        );
+      }
+
       final response = await http.get(url);
       if (response.statusCode == 200) {
         setState(() => _ejerciciosEncontrados = json.decode(response.body));
+      } else {
+        _snack('No se pudieron cargar los ejercicios');
       }
     } catch (e) {
-      debugPrint('Error al buscar: $e');
+      debugPrint('Error al cargar por músculo: $e');
+      _snack('Error de conexión al cargar ejercicios');
+    } finally {
+      if (mounted) setState(() => _cargandoEjercicios = false);
     }
+  }
+
+  void _onMusculoSeleccionado(MuscleRegion region) {
+    if (_musculoSeleccionadoId == region.id) {
+      setState(() {
+        _musculoSeleccionadoId = null;
+        _ejerciciosEncontrados = [];
+      });
+      return;
+    }
+    _cargarEjerciciosPorMusculo(region);
   }
 
   void _agregarEjercicio(Map<String, dynamic> ejercicio) {
@@ -78,7 +112,6 @@ class _RutinaScreenState extends State<RutinaScreen> {
           'repeticiones': TextEditingController(),
           'peso': TextEditingController(),
         });
-        _buscadorController.clear();
         _ejerciciosEncontrados = [];
       });
     } else {
@@ -276,32 +309,39 @@ class _RutinaScreenState extends State<RutinaScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Buscador ──
+              // ── Selector corporal ──
               const Text(
                 'Añadir ejercicios:',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _buscadorController,
-                decoration: InputDecoration(
-                  hintText: 'Buscar ejercicio (ej. Biceps, Sentadilla...)',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              BodyMusclePicker(
+                selectedId: _musculoSeleccionadoId,
+                onRegionSelected: _onMusculoSeleccionado,
+              ),
+              if (_cargandoEjercicios)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_musculoSeleccionadoId != null &&
+                  _ejerciciosEncontrados.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No hay ejercicios con ese músculo primario.',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                onChanged: _buscarEjercicios,
-              ),
-              const SizedBox(height: 6),
-
-              // ── Resultados búsqueda ──
               if (_ejerciciosEncontrados.isNotEmpty)
                 Container(
-                  height: 140,
+                  margin: const EdgeInsets.only(top: 8),
+                  height: 160,
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.oceanBlue.withValues(alpha: 0.25)),
                   ),
                   child: ListView.builder(
                     itemCount: _ejerciciosEncontrados.length,

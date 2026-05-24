@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="793.70667"
+   height="793.70667"
+   viewBox="0 0 793.70667 793.70667"
+   sodipodi:docname="biceps.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <radialGradient
+       fx="0"
+       fy="0"
+       cx="0"
+       cy="0"
+       r="1"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(4080.55,0,0,-4074.95,2976.38,2976.37)"
+       spreadMethod="pad"
+       id="radialGradient4">
+      <stop
+         style="stop-opacity:1;stop-color:#ffffff"
+         offset="0"
+         id="stop2" />
+      <stop
+         style="stop-opacity:1;stop-color:#ffffff"
+         offset="0.403061"
+         id="stop3" />
+      <stop
+         style="stop-opacity:1;stop-color:#e8eae8"
+         offset="1"
+         id="stop4" />
+    </radialGradient>
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.0495061"
+     inkscape:cx="132.44325"
+     inkscape:cy="257.74028"
+     inkscape:window-width="1920"
+     inkscape:window-height="1051"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="group-R5"
+     inkscape:export-bgcolor="#ff5bff00">
+    <inkscape:page
+       x="0"
+       y="0"
+       inkscape:label="1"
+       id="page1"
+       width="793.70667"
+       height="793.70667"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <g
+     id="g1"
+     inkscape:groupmode="layer"
+     inkscape:label="1">
+    <g
+       id="group-R5">
+      <path
+         id="path2"
+         d="M 5952.75,0 H 0 V 5952.75 H 5952.75 V 0"
+         style="fill:#61a2c1;fill-opacity:0;fill-rule:nonzero;stroke:none"
+         transform="matrix(0.13333333,0,0,-0.13333333,0,793.70667)" />
+      <path
+         id="path15"
+         d="m 2081.46,4476.24 c 17.04,3.42 94.05,-7.96 125.26,-33.64 89.26,-73.5 81.71,-233.81 81.71,-275.1 0,-41.29 32.78,-133.76 -23.72,-133.76 -56.48,0 -183.25,194.81 -196.29,253.48 -13.05,58.65 -30.42,180.33 13.04,189.02"
+         style="fill:#9969d2;fill-opacity:1;fill-rule:nonzero;stroke:#231f20;stroke-opacity:0"
+         transform="matrix(0.13333333,0,0,-0.13333333,0,793.70667)" />
+      <path
+         id="path16"
+         d="m 2250.2,3965.34 c -1.61,-0.25 -3.26,-0.01 -4.84,0.7 -74.56,34.05 -136.76,113.98 -160.17,144.09 l -3.87,4.94 c -2.98,3.76 -13.5,49.35 -9.73,52.3 3.73,3 9.23,2.32 12.2,-1.44 l 3.9,-5.04 c 22.71,-29.18 94.22,-146.76 164.91,-179.05 4.36,-2 6.3,-7.15 4.29,-11.5 -1.27,-2.81 -3.85,-4.61 -6.69,-5"
+         style="fill:#9969d2;fill-opacity:1;fill-rule:nonzero;stroke:#231f20;stroke-opacity:0;stroke-width:0.99750002;stroke-dasharray:none"
+         transform="matrix(0.13333333,0,0,-0.13333333,0,793.70667)" />
+      <path
+         id="path65"
+         d="m 1075.13,4476.24 c -17.04,3.42 -94.067,-7.96 -125.247,-33.64 -89.262,-73.5 -81.731,-233.81 -81.731,-275.1 0,-41.29 -32.781,-133.76 23.703,-133.76 56.52,0 183.275,194.81 196.315,253.48 13.03,58.65 30.41,180.33 -13.04,189.02"
+         style="fill:#9969d2;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         transform="matrix(0.13333333,0,0,-0.13333333,0,793.70667)" />
+      <path
+         id="path66"
+         d="m 906.402,3965.34 c 1.602,-0.25 3.254,-0.01 4.805,0.7 74.586,34.05 136.783,113.98 160.203,144.09 l 3.85,4.94 c 2.98,3.76 13.51,49.35 9.75,52.3 -3.75,3 -9.25,2.32 -12.21,-1.44 l -3.93,-5.04 c -22.68,-29.18 -94.186,-146.76 -164.882,-179.05 -4.355,-2 -6.293,-7.15 -4.304,-11.5 1.293,-2.81 3.875,-4.61 6.718,-5"
+         style="fill:#9969d2;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         transform="matrix(0.13333333,0,0,-0.13333333,0,793.70667)" />
+    </g>
+  </g>
+</svg>

@@ -37,6 +37,7 @@ flutter:
     - assets/images/human_resources/
     - assets/images/workout1.svg
     - assets/images/workout2.svg
+    - assets/body/
   fonts:
     - family: HeuvelGrotesk
       fonts:
