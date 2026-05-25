@@ -186,9 +186,14 @@ class _RutinaScreenState extends State<RutinaScreen> {
         'ejercicios': ejercicios,
       });
 
+      final token = await AuthService().getToken(); // ← agregar esto antes
+
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/rutinas'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // ← agregar esto
+        },
         body: body,
       );
 
@@ -219,10 +224,10 @@ class _RutinaScreenState extends State<RutinaScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Registrar Rutina',
-        style: TextStyle(
-         color: Color.fromARGB(255, 247, 249, 251),)
-         ),
+        title: const Text(
+          'Registrar Rutina',
+          style: TextStyle(color: Color.fromARGB(255, 247, 249, 251)),
+        ),
         backgroundColor: AppColors.oceanBlue,
       ),
       body: GestureDetector(
@@ -344,7 +349,9 @@ class _RutinaScreenState extends State<RutinaScreen> {
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.oceanBlue.withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: AppColors.oceanBlue.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: ListView.builder(
                     itemCount: _ejerciciosEncontrados.length,

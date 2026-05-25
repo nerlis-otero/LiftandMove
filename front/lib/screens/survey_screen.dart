@@ -15,6 +15,7 @@ import 'package:flutter_app_liftmove/screens/surveyfolder/pages/question_four.da
 import 'package:flutter_app_liftmove/screens/surveyfolder/pages/question_five.dart';
 import 'package:flutter_app_liftmove/screens/surveyfolder/pages/final_page.dart';
 import 'package:flutter_app_liftmove/screens/login_screen.dart';
+import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
 
 class SurveyScreen extends StatefulWidget {
   final String nombreUsu;
@@ -122,6 +123,24 @@ class _SurveyScreenState extends State<SurveyScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final loginUrl = Uri.parse('${ApiConfig.baseUrl}/login');
+        final loginRes = await http.post(
+          loginUrl,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'nombreUsu': widget.nombreUsu,
+            'contrasenha': widget.contrasenha,
+          }),
+        );
+        if (loginRes.statusCode == 200) {
+          final loginData = json.decode(loginRes.body);
+          final authService = AuthService();
+          await authService.guardarSesion(
+            token: loginData['access_token'],
+            nombreUsu: loginData['nombreUsu'],
+            esAdmin: false,
+          );
+        }
         if (!mounted) return;
         setState(() => _currentPage = 6);
         _irAPagina(6);

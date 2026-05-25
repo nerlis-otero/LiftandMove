@@ -33,9 +33,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const SignupScreen(),
       routes: {
-        '/home':(ctx) => const HomeScreen(),
-        '/admin':(ctx) => const AdminPanel(),
-      }
+        '/home': (ctx) => const HomeScreen(),
+        '/admin': (ctx) => const AdminPanel(),
+      },
     );
   }
 }

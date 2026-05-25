@@ -42,7 +42,13 @@ class _StatsScreenState extends State<StatsScreen> {
     try {
       _idUsu = await AuthService().getNombre();
       _token = await AuthService().getToken();
-      if (_idUsu == null || _token == null) return;
+      if (_idUsu == null || _token == null) {
+        // ← AGREGA estas líneas
+        debugPrint(
+          'Stats: sesión no disponible (_idUsu=$_idUsu, token=$_token)',
+        );
+        return; // _stats queda null → muestra "Error cargando estadísticas"
+      }
 
       final url = Uri.parse('${ApiConfig.baseUrl}/stats/$_idUsu');
       final response = await http.get(
@@ -240,7 +246,8 @@ class _StatsScreenState extends State<StatsScreen> {
                           _buildGoalsSections(),
 
                           // ── Ejercicios por tipo ──
-                          if ((_stats!['por_tipo'] as List?)?.isNotEmpty == true) ...[
+                          if ((_stats!['por_tipo'] as List?)?.isNotEmpty ==
+                              true) ...[
                             const SizedBox(height: 20),
                             const Text(
                               'Ejercicios por categoría',
@@ -293,9 +300,7 @@ class _StatsScreenState extends State<StatsScreen> {
           child: _buildStatCard(
             Icons.trending_up,
             'Cambio\ntotal',
-            historialVacio
-                ? '—'
-                : '$signo${variacion.toStringAsFixed(1)} kg',
+            historialVacio ? '—' : '$signo${variacion.toStringAsFixed(1)} kg',
             variacion <= 0 ? Colors.teal : AppColors.darkerPink,
           ),
         ),
@@ -429,14 +434,16 @@ class _StatsScreenState extends State<StatsScreen> {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: ((maxY - minY) / 4).clamp(0.5, 10.0),
-          getDrawingHorizontalLine: (v) => FlLine(
-            color: Colors.grey.withOpacity(0.2),
-            strokeWidth: 1,
-          ),
+          getDrawingHorizontalLine: (v) =>
+              FlLine(color: Colors.grey.withOpacity(0.2), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -451,7 +458,9 @@ class _StatsScreenState extends State<StatsScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
-              interval: historial.length > 6 ? (historial.length / 4).ceilToDouble() : 1,
+              interval: historial.length > 6
+                  ? (historial.length / 4).ceilToDouble()
+                  : 1,
               getTitlesWidget: (value, meta) {
                 final i = value.toInt();
                 if (i < 0 || i >= labels.length) return const SizedBox.shrink();
@@ -644,14 +653,16 @@ class _StatsScreenState extends State<StatsScreen> {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: ((maxY - minY) / 4).clamp(0.5, 50.0),
-          getDrawingHorizontalLine: (v) => FlLine(
-            color: Colors.grey.withOpacity(0.2),
-            strokeWidth: 1,
-          ),
+          getDrawingHorizontalLine: (v) =>
+              FlLine(color: Colors.grey.withOpacity(0.2), strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -791,7 +802,8 @@ class _StatsScreenState extends State<StatsScreen> {
   // ── Goal: Perder peso ────────────────────────────────────────────────────────
   Widget _buildGoalPerderPeso() {
     final pesoActual = (_stats!['peso_actual'] as num?)?.toDouble() ?? 0;
-    final pesoInicial = (_stats!['peso_inicial'] as num?)?.toDouble() ?? pesoActual;
+    final pesoInicial =
+        (_stats!['peso_inicial'] as num?)?.toDouble() ?? pesoActual;
     final pesoObjetivo = (_stats!['peso_objetivo'] as num?)?.toDouble();
     final tieneMeta = pesoObjetivo != null && pesoObjetivo > 0;
 
