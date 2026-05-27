@@ -1119,6 +1119,63 @@ def historial_cargas(
         return []
     finally:
         connection.close()
+@app.delete("/rutinas/{idPlantilla}/ejercicios/{idRutinaEj}")
+def eliminar_ejercicio_de_rutina(idPlantilla: str, idRutinaEj: str, admin: UsuarioActual = Depends(get_admin_usuario)):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM rutina_ejercicio 
+                WHERE "idRutinaEj" = %s AND "idPlantilla" = %s
+                """,
+                (idRutinaEj, idPlantilla)
+            )
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Ejercicio no encontrado en esa rutina")
+            connection.commit()
+            return {"success": True}
+    finally:
+        connection.close()
+
+@app.get("/admin/usuarios/{idUsu}/rutinas")
+def admin_get_rutinas_usuario(idUsu: str, admin: UsuarioActual = Depends(get_admin_usuario)):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    rp."idPlantilla",
+                    rp.nombre,
+                    rp.fecha_inicio,
+                    rp.fecha_fin,
+                    COUNT(re."idRutinaEj") AS total_ejercicios
+                FROM rutina_plantilla rp
+                LEFT JOIN rutina_ejercicio re ON rp."idPlantilla" = re."idPlantilla"
+                WHERE rp."idUsu" = %s
+                GROUP BY rp."idPlantilla", rp.nombre, rp.fecha_inicio, rp.fecha_fin
+                ORDER BY rp.fecha_inicio DESC
+            """, (idUsu,))
+            return cursor.fetchall()
+    finally:
+        connection.close()
+
+@app.get("/admin/rutinas/{idPlantilla}/ejercicios")
+def admin_get_ejercicios_rutina(idPlantilla: str, admin: UsuarioActual = Depends(get_admin_usuario)):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT re."idRutinaEj", re."idEjercicio", e."nombreEj",
+                       re.series, re.repeticiones, re."peso_kg"
+                FROM rutina_ejercicio re
+                JOIN ejercicios e ON re."idEjercicio" = e."idEjercicio"
+                WHERE re."idPlantilla" = %s
+                ORDER BY re.orden ASC
+            """, (idPlantilla,))
+            return cursor.fetchall()
+    finally:
+        connection.close()
 
 @app.get("/rutinas/{idPlantilla}/completada")
 def verificar_completada(idPlantilla: str, fecha: str):

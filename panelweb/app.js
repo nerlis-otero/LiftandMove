@@ -1,0 +1,1 @@
+const API_URL = "https://liftandmove.onrender.com"
