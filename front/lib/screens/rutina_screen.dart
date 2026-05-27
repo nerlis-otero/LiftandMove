@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
+import 'package:flutter_app_liftmove/core/theme/widgets/customs_bg.dart';
+import 'package:flutter_app_liftmove/core/theme/widgets/rounded_container.dart';
 import 'package:flutter_app_liftmove/core/api_config.dart';
 import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
 import 'package:flutter_app_liftmove/widgets/body_muscle_picker.dart';
@@ -186,19 +188,19 @@ class _RutinaScreenState extends State<RutinaScreen> {
         'ejercicios': ejercicios,
       });
 
-      final token = await AuthService().getToken(); // ← agregar esto antes
+      final token = await AuthService().getToken();
 
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/rutinas'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // ← agregar esto
+          'Authorization': 'Bearer $token',
         },
         body: body,
       );
 
       if (response.statusCode == 200) {
-        _snack('Rutina guardada!', color: Colors.green);
+        _snack('Rutina guardada!', color: AppColors.mainBlue);
         if (mounted) Navigator.pop(context);
       } else {
         final err = json.decode(response.body);
@@ -222,283 +224,442 @@ class _RutinaScreenState extends State<RutinaScreen> {
     final fmt = DateFormat('dd/MM/yyyy');
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text(
-          'Registrar Rutina',
-          style: TextStyle(color: Color.fromARGB(255, 247, 249, 251)),
+          'NUEVA RUTINA',
+          style: TextStyle(
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkPurple,
+            fontSize: 15,
+          ),
         ),
-        backgroundColor: AppColors.oceanBlue,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.darkPurple),
       ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Nombre ──
-              TextField(
-                controller: _nombreRutinaController,
-                decoration: InputDecoration(
-                  hintText: 'Nombre de la rutina (ej. Pecho y Tríceps)',
-                  prefixIcon: const Icon(Icons.edit),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Días ──
-              const Text(
-                '¿Qué días se repite?',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (i) {
-                  final sel = _diasSeleccionados.contains(i);
-                  return GestureDetector(
-                    onTap: () => setState(
-                      () => sel
-                          ? _diasSeleccionados.remove(i)
-                          : _diasSeleccionados.add(i),
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: sel ? AppColors.oceanBlue : Colors.grey[200],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          _nombresDias[i],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: sel ? Colors.white : Colors.grey[700],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Fechas ──
-              const Text(
-                '¿Durante qué período?',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _botonFecha(
-                      label: 'Inicio',
-                      fecha: fmt.format(_fechaInicio),
-                      onTap: () => _seleccionarFecha(esInicio: true),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _botonFecha(
-                      label: 'Fin',
-                      fecha: fmt.format(_fechaFin),
-                      onTap: () => _seleccionarFecha(esInicio: false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── Selector corporal ──
-              const Text(
-                'Añadir ejercicios:',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              BodyMusclePicker(
-                selectedId: _musculoSeleccionadoId,
-                onRegionSelected: _onMusculoSeleccionado,
-              ),
-              if (_cargandoEjercicios)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_musculoSeleccionadoId != null &&
-                  _ejerciciosEncontrados.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'No hay ejercicios con ese músculo primario.',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              if (_ejerciciosEncontrados.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.oceanBlue.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: ListView.builder(
-                    itemCount: _ejerciciosEncontrados.length,
-                    itemBuilder: (context, i) {
-                      final ej = _ejerciciosEncontrados[i];
-                      return ListTile(
-                        dense: true,
-                        title: Text(ej['nombreEj'] ?? 'Sin nombre'),
-                        subtitle: Text(ej['tipo'] ?? ''),
-                        trailing: const Icon(
-                          Icons.add_circle_outline,
-                          color: Colors.green,
-                        ),
-                        onTap: () => _agregarEjercicio(ej),
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 8),
-
-              // ── Lista ejercicios seleccionados ──
-              if (_ejerciciosSeleccionados.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: Text('Aún no has agregado ejercicios.')),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true, // 👈 clave: no necesita altura fija
-                  physics:
-                      const NeverScrollableScrollPhysics(), // 👈 el scroll lo maneja el padre
-                  itemCount: _ejerciciosSeleccionados.length,
-                  itemBuilder: (context, index) {
-                    final sel = _ejerciciosSeleccionados[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    sel['nombreEj'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => _ejerciciosSeleccionados.removeAt(
-                                      index,
-                                    ),
-                                  ),
-                                ),
-                              ],
+      body: Stack(
+        children: [
+          const CustomBg(showLogo: false),
+          SafeArea(
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Nombre ──
+                    RoundedContainer(
+                      color: AppColors.blueishPurple.withOpacity(0.3),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Nombre de la rutina',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkPurple,
+                              letterSpacing: 0.5,
                             ),
-                            Text(
-                              sel['tipo'] ?? '',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _nombreRutinaController,
+                            decoration: InputDecoration(
+                              hintText: 'Ej. Pecho y Tríceps',
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              prefixIcon: const Icon(
+                                Icons.edit,
+                                color: AppColors.oceanBlue,
+                                size: 20,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.85),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 12,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: SizedBox(
-                                height: 100,
-                                width: double.infinity,
-                                child: Image.network(
-                                  'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${sel['idEjercicio'].toString().trim().replaceAll(' ', '_')}/0.jpg',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.fitness_center,
-                                        size: 36,
-                                        color: Colors.grey,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Días ──
+                    RoundedContainer(
+                      color: AppColors.blueishPurple.withOpacity(0.3),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '¿Qué días se repite?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkPurple,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: List.generate(7, (i) {
+                              final sel = _diasSeleccionados.contains(i);
+                              return GestureDetector(
+                                onTap: () => setState(
+                                  () => sel
+                                      ? _diasSeleccionados.remove(i)
+                                      : _diasSeleccionados.add(i),
+                                ),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: sel
+                                        ? AppColors.darkerPink
+                                        : Colors.white.withOpacity(0.7),
+                                    shape: BoxShape.circle,
+                                    boxShadow: sel
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.darkerPink
+                                                  .withOpacity(0.35),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ]
+                                        : [],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _nombresDias[i],
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: sel
+                                            ? Colors.white
+                                            : AppColors.darkPurple,
                                       ),
                                     ),
                                   ),
                                 ),
+                              );
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Fechas ──
+                    RoundedContainer(
+                      color: AppColors.blueishPurple.withOpacity(0.3),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '¿Durante qué período?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkPurple,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _botonFecha(
+                                  label: 'Inicio',
+                                  fecha: fmt.format(_fechaInicio),
+                                  onTap: () =>
+                                      _seleccionarFecha(esInicio: true),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _botonFecha(
+                                  label: 'Fin',
+                                  fecha: fmt.format(_fechaFin),
+                                  onTap: () =>
+                                      _seleccionarFecha(esInicio: false),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Selector corporal ──
+                    RoundedContainer(
+                      color: AppColors.blueishPurple.withOpacity(0.3),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Añadir ejercicios',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkPurple,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          BodyMusclePicker(
+                            selectedId: _musculoSeleccionadoId,
+                            onRegionSelected: _onMusculoSeleccionado,
+                          ),
+                          if (_cargandoEjercicios)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_musculoSeleccionadoId != null &&
+                              _ejerciciosEncontrados.isEmpty)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                'No hay ejercicios con ese músculo primario.',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                _campoNum(sel['series'], 'Sets'),
-                                const SizedBox(width: 8),
-                                _campoNum(sel['repeticiones'], 'Reps'),
-                                const SizedBox(width: 8),
-                                _campoNum(sel['peso'], 'Peso kg'),
+                          if (_ejerciciosEncontrados.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              height: 160,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.85),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.oceanBlue.withOpacity(0.2),
+                                ),
+                              ),
+                              child: ListView.builder(
+                                itemCount: _ejerciciosEncontrados.length,
+                                itemBuilder: (context, i) {
+                                  final ej = _ejerciciosEncontrados[i];
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(
+                                      ej['nombreEj'] ?? 'Sin nombre',
+                                      style: const TextStyle(
+                                        color: AppColors.darkPurple,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      ej['tipo'] ?? '',
+                                      style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 11),
+                                    ),
+                                    trailing: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: AppColors.berry,
+                                    ),
+                                    onTap: () => _agregarEjercicio(ej),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ── Lista ejercicios seleccionados ──
+                    if (_ejerciciosSeleccionados.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Text(
+                            'Aún no has agregado ejercicios.',
+                            style: TextStyle(
+                              color: AppColors.blueishPurple,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _ejerciciosSeleccionados.length,
+                        itemBuilder: (context, index) {
+                          final sel = _ejerciciosSeleccionados[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.88),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.oceanBlue.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
                               ],
                             ),
-                          ],
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          sel['nombreEj'],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: AppColors.darkPurple,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: AppColors.darkPink,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _ejerciciosSeleccionados
+                                              .removeAt(index),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    sel['tipo'] ?? '',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: SizedBox(
+                                      height: 100,
+                                      width: double.infinity,
+                                      child: Image.network(
+                                        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${sel['idEjercicio'].toString().trim().replaceAll(' ', '_')}/0.jpg',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) =>
+                                            Container(
+                                          color: Colors.grey[100],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.fitness_center,
+                                              size: 36,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      _campoNum(sel['series'], 'Sets'),
+                                      const SizedBox(width: 8),
+                                      _campoNum(
+                                          sel['repeticiones'], 'Reps'),
+                                      const SizedBox(width: 8),
+                                      _campoNum(sel['peso'], 'Peso kg'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                    // ── Botón Guardar ──
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.oceanBlue, AppColors.mainBlue],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.oceanBlue.withOpacity(0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: _guardando ? null : _guardarRutina,
+                        icon: _guardando
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save),
+                        label: Text(
+                          _guardando ? 'Guardando...' : 'Guardar Rutina',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-
-              // ── Botón Guardar ──
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _guardando ? null : _guardarRutina,
-                  icon: _guardando
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.save),
-                  label: Text(_guardando ? 'Guardando...' : 'Guardar Rutina'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.oceanBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -513,25 +674,34 @@ class _RutinaScreenState extends State<RutinaScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
+          color: Colors.white.withOpacity(0.85),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.oceanBlue.withOpacity(0.2),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-            const SizedBox(width: 6),
+            const Icon(Icons.calendar_today,
+                size: 16, color: AppColors.oceanBlue),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.blueishPurple,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   fecha,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
+                    color: AppColors.darkPurple,
                   ),
                 ),
               ],
@@ -547,10 +717,26 @@ class _RutinaScreenState extends State<RutinaScreen> {
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        style: const TextStyle(
+          color: AppColors.darkPurple,
+          fontWeight: FontWeight.w600,
+        ),
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: TextStyle(
+            color: AppColors.blueishPurple,
+            fontSize: 12,
+          ),
           hintText: '0',
           isDense: true,
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.6),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
       ),
     );

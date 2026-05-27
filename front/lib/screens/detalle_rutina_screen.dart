@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
+import 'package:flutter_app_liftmove/core/theme/widgets/customs_bg.dart';
+import 'package:flutter_app_liftmove/core/theme/widgets/rounded_container.dart';
 import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
 import 'package:flutter_app_liftmove/core/api_config.dart';
 
@@ -77,14 +79,37 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        setState(() => _completada = data['completada']);
+        final nuevaCompletada = data['completada'] as bool;
+        setState(() => _completada = nuevaCompletada);
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                _completada ? 'Rutina completada' : 'Rutina desmarcada',
+              content: Row(
+                children: [
+                  Icon(
+                    nuevaCompletada
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    nuevaCompletada
+                        ? '¡Sesión marcada como completada!'
+                        : 'Sesión desmarcada',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              backgroundColor: _completada ? Colors.green : Colors.grey,
+              backgroundColor:
+                  nuevaCompletada ? AppColors.berry : Colors.grey[600],
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -98,8 +123,16 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar rutina'),
-        content: const Text('Esta accion no se puede deshacer.'),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Eliminar rutina',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkPurple,
+          ),
+        ),
+        content: const Text('Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -146,7 +179,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error de conexion: $e'),
+            content: Text('Error de conexión: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -177,108 +210,229 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.nombreRutina.toUpperCase()),
-        backgroundColor: AppColors.oceanBlue,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _completada ? Icons.check_circle : Icons.check_circle_outline,
-              color: _completada ? Colors.greenAccent : Colors.white,
-            ),
-            onPressed: _toggleCompletar,
-            tooltip: _completada
-                ? 'Marcar como no completada'
-                : 'Marcar como completada',
+        title: Text(
+          widget.nombreRutina.toUpperCase(),
+          style: const TextStyle(
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkPurple,
+            fontSize: 15,
           ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.white),
-            onPressed: _eliminarRutina,
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.darkPurple),
+        actions: [
+          // Botón completar
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: _completada
+                    ? AppColors.berry.withOpacity(0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  _completada
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline,
+                  color: _completada ? AppColors.berry : AppColors.darkPurple,
+                ),
+                onPressed: _toggleCompletar,
+                tooltip: _completada
+                    ? 'Marcar como no completada'
+                    : 'Marcar como completada',
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.darkPink),
+              onPressed: _eliminarRutina,
+            ),
           ),
         ],
       ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : _ejercicios.isEmpty
-          ? const Center(
-              child: Text('Esta rutina no tiene ejercicios asignados.'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _ejercicios.length,
-              itemBuilder: (context, index) {
-                final ej = _ejercicios[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ej['nombreEj'] ?? 'Ejercicio',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          height: 150,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey[100],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${ej['idEjercicio'].toString().trim().replaceAll(' ', '_')}/0.jpg',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Icon(
-                                    Icons.fitness_center,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
-                                );
-                              },
+      body: Stack(
+        children: [
+          const CustomBg(showLogo: false),
+          SafeArea(
+            child: _cargando
+                ? const Center(child: CircularProgressIndicator())
+                : _ejercicios.isEmpty
+                    ? Center(
+                        child: RoundedContainer(
+                          color: AppColors.blueishPurple.withOpacity(0.3),
+                          child: const Text(
+                            'Esta rutina no tiene ejercicios asignados.',
+                            style: TextStyle(
+                              color: AppColors.darkPurple,
+                              fontWeight: FontWeight.w500,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatColumn('Sets', '${ej['series']}'),
-                            _buildStatColumn('Reps', '${ej['repeticiones']}'),
-                            _buildStatColumn('Peso', '${ej['peso']} kg'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        itemCount: _ejercicios.length,
+                        itemBuilder: (context, index) {
+                          final ej = _ejercicios[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.88),
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      AppColors.oceanBlue.withOpacity(0.09),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Número + nombre
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.oceanBlue
+                                              .withOpacity(0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${index + 1}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.oceanBlue,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          ej['nombreEj'] ?? 'Ejercicio',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.darkPurple,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // Imagen
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      height: 140,
+                                      width: double.infinity,
+                                      color: Colors.grey[100],
+                                      child: Image.network(
+                                        'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${ej['idEjercicio'].toString().trim().replaceAll(' ', '_')}/0.jpg',
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return const Center(
+                                            child: Icon(
+                                              Icons.fitness_center,
+                                              size: 40,
+                                              color: Colors.grey,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  // Stats
+                                  Row(
+                                    children: [
+                                      _buildStatChip(
+                                        Icons.repeat,
+                                        'Sets',
+                                        '${ej['series']}',
+                                        AppColors.oceanBlue,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildStatChip(
+                                        Icons.loop,
+                                        'Reps',
+                                        '${ej['repeticiones']}',
+                                        AppColors.berry,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildStatChip(
+                                        Icons.fitness_center,
+                                        'Peso',
+                                        '${ej['peso']} kg',
+                                        AppColors.darkerPink,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildStatColumn(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  Widget _buildStatChip(
+      IconData icon, String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.2)),
         ),
-      ],
+        child: Column(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                  color: color, fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkPurple,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

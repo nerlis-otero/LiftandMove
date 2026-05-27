@@ -6,7 +6,7 @@ class ApiConfig {
       true; // Cambia a true si quieres usar la IP fija en dispositivos físicos
 
   // IP
-  static const String _myIP = "172.18.10.83";
+  static const String _myIP = "192.168.1.75";
 
   static String get baseUrl {
     // WEB

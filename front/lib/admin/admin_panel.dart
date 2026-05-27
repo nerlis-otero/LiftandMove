@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app_liftmove/core/theme/app_theme.dart';
 import 'package:flutter_app_liftmove/core/theme/widgets/customs_bg.dart';
+import 'package:flutter_app_liftmove/core/Services/auth_service.dart';
 import 'guards/admin_guard.dart';
 import 'screens/users_screen.dart';
 import 'package:flutter_app_liftmove/admin/services/admin_service.dart';
+import 'package:flutter_app_liftmove/screens/login_screen.dart';
 
 class AdminPanel extends StatefulWidget {
   const AdminPanel({super.key});
@@ -21,6 +23,16 @@ class _AdminPanelState extends State<AdminPanel> {
     _NavItem(icon: Icons.people_alt_rounded, label: 'Usuarios'),
     _NavItem(icon: Icons.bar_chart_rounded, label: 'Dashboard'),
   ];
+
+  Future<void> _cerrarSesion() async {
+    await AuthService().logout();
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +54,7 @@ class _AdminPanelState extends State<AdminPanel> {
           centerTitle: true,
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 4),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -72,6 +84,16 @@ class _AdminPanelState extends State<AdminPanel> {
                 ),
               ),
             ),
+            IconButton(
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: AppColors.darkPink,
+                size: 20,
+              ),
+              tooltip: 'Cerrar sesión',
+              onPressed: _cerrarSesion,
+            ),
+            const SizedBox(width: 4),
           ],
         ),
         body: Stack(
@@ -154,8 +176,6 @@ class _NavItem {
   const _NavItem({required this.icon, required this.label});
 }
 
-// ── Reemplaza la clase DashboardScreen en admin_panel.dart ──────────────────
-
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -184,12 +204,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // ── Cálculos derivados ────────────────────────────────────────────────────
   int get _totalUsuarios => _usuarios.length;
   int get _totalAdmins =>
       _usuarios.where((u) => u['esAdmin'] == 1 || u['esAdmin'] == true).length;
   int get _totalNormales => _totalUsuarios - _totalAdmins;
-
   int get _masculinos => _usuarios.where((u) => u['sexo'] == 'M').length;
   int get _femeninos => _usuarios.where((u) => u['sexo'] == 'F').length;
 
@@ -224,7 +242,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (obj.isEmpty) {
         map['Sin objetivo'] = (map['Sin objetivo'] ?? 0) + 1;
       } else {
-        // Puede venir como "Perder peso, Ganar músculo" → split
         for (final parte in obj.split(',')) {
           final k = parte.trim();
           if (k.isNotEmpty) map[k] = (map[k] ?? 0) + 1;
@@ -236,9 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_cargando) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_cargando) return const Center(child: CircularProgressIndicator());
 
     final objetivos = _objetivosCont;
     final maxObj = objetivos.values.fold(0, (m, v) => v > m ? v : m);
@@ -248,130 +263,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
       color: AppColors.oceanBlue,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Título sección ─────────────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.only(bottom: 14, top: 4),
-              child: Text(
-                'Resumen general',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.lightPink,
-                  letterSpacing: 1.2,
+            // ── Stat cards ──
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.4,
+              children: [
+                _StatCard(
+                  icon: Icons.people_alt_rounded,
+                  label: 'Usuarios totales',
+                  value: '$_totalUsuarios',
+                  color: AppColors.oceanBlue,
                 ),
-              ),
+                _StatCard(
+                  icon: Icons.shield_rounded,
+                  label: 'Admins',
+                  value: '$_totalAdmins',
+                  color: AppColors.berry,
+                ),
+                _StatCard(
+                  icon: Icons.monitor_weight_outlined,
+                  label: 'Peso promedio',
+                  value: '${_pesoPromedio.toStringAsFixed(1)} kg',
+                  color: AppColors.darkerPink,
+                ),
+                _StatCard(
+                  icon: Icons.height_rounded,
+                  label: 'Altura promedio',
+                  value: '${_alturaPromedio.toStringAsFixed(0)} cm',
+                  color: AppColors.mainBlue,
+                ),
+              ],
             ),
 
-            // ── Fila 1: Tarjetas principales ───────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.people_alt_rounded,
-                    label: 'Total usuarios',
-                    value: '$_totalUsuarios',
-                    color: AppColors.oceanBlue,
+            const SizedBox(height: 20),
+
+            // ── Género ──
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.babyGrey.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.shield_rounded,
-                    label: 'Admins',
-                    value: '$_totalAdmins',
-                    color: AppColors.periwinkle,
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Distribución por género',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppColors.darkPurple,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.person_rounded,
-                    label: 'Usuarios',
-                    value: '$_totalNormales',
+                  const SizedBox(height: 14),
+                  _GenderBar(
+                    icon: Icons.male_rounded,
+                    label: 'Masculino',
+                    count: _masculinos,
+                    total: _totalUsuarios,
                     color: AppColors.mainBlue,
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // ── Fila 2: Peso y altura ──────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.monitor_weight_rounded,
-                    label: 'Peso promedio',
-                    value: '${_pesoPromedio.toStringAsFixed(1)} kg',
-                    color: const Color(0xFF7B5EA7),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.height_rounded,
-                    label: 'Altura promedio',
-                    value: '${_alturaPromedio.toStringAsFixed(0)} cm',
-                    color: Colors.teal,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Distribución por sexo ──────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Distribución por sexo',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.lightPink,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.babyGrey.withOpacity(0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _GenderBar(
-                      icon: Icons.male_rounded,
-                      label: 'Masculino',
-                      count: _masculinos,
-                      total: _totalUsuarios,
-                      color: AppColors.mainBlue,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _GenderBar(
-                      icon: Icons.female_rounded,
-                      label: 'Femenino',
-                      count: _femeninos,
-                      total: _totalUsuarios,
-                      color: AppColors.berry,
-                    ),
+                  const SizedBox(height: 12),
+                  _GenderBar(
+                    icon: Icons.female_rounded,
+                    label: 'Femenino',
+                    count: _femeninos,
+                    total: _totalUsuarios,
+                    color: AppColors.berry,
                   ),
                 ],
               ),
@@ -379,115 +352,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Objetivos de entrenamiento ─────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Objetivos de entrenamiento',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.lightPink,
-                  letterSpacing: 1.2,
+            // ── Objetivos ──
+            if (objetivos.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.babyGrey.withOpacity(0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.babyGrey.withOpacity(0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: objetivos.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Sin datos aún',
-                        style: TextStyle(color: Colors.grey),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Objetivos de entrenamiento',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.darkPurple,
                       ),
-                    )
-                  : Column(
-                      children: objetivos.entries.map((entry) {
-                        final pct = maxObj > 0 ? entry.value / maxObj : 0.0;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      entry.key,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.darkPurple,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${entry.value} usuarios',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 5),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0, end: pct),
-                                  duration: const Duration(milliseconds: 700),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (_, val, __) =>
-                                      LinearProgressIndicator(
-                                        value: val,
-                                        minHeight: 9,
-                                        backgroundColor: AppColors.oceanBlue
-                                            .withOpacity(0.1),
-                                        valueColor:
-                                            const AlwaysStoppedAnimation<Color>(
-                                              AppColors.oceanBlue,
-                                            ),
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
                     ),
-            ),
+                    const SizedBox(height: 14),
+                    ...objetivos.entries.map((e) {
+                      final pct = maxObj > 0 ? e.value / maxObj : 0.0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    e.key,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.darkPurple,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '${e.value}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.darkPurple,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0, end: pct),
+                                duration: const Duration(milliseconds: 700),
+                                curve: Curves.easeOutCubic,
+                                builder: (_, val, __) =>
+                                    LinearProgressIndicator(
+                                      value: val,
+                                      minHeight: 8,
+                                      backgroundColor: AppColors.oceanBlue
+                                          .withOpacity(0.1),
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                            AppColors.oceanBlue,
+                                          ),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 20),
 
-            // ── Lista reciente ─────────────────────────────────────────────
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Últimos usuarios registrados',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.lightPink,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-
+            // ── Lista usuarios ──
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -501,79 +454,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               child: Column(
-                children: _usuarios.reversed.take(5).map((u) {
-                  final esAdmin = u['esAdmin'] == 1 || u['esAdmin'] == true;
-                  final inicial = (u['nombreUsu'] ?? '?')[0].toUpperCase();
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Todos los usuarios',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.darkPurple,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.oceanBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$_totalNormales usuarios · $_totalAdmins admins',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.oceanBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.oceanBlue.withOpacity(0.15),
-                      child: Text(
-                        inicial,
-                        style: const TextStyle(
-                          color: AppColors.oceanBlue,
-                          fontWeight: FontWeight.bold,
+                  ),
+                  const Divider(height: 1),
+                  ..._usuarios.map((u) {
+                    final esAdmin = u['esAdmin'] == 1 || u['esAdmin'] == true;
+                    final inicial = (u['nombreUsu'] ?? '?')[0].toUpperCase();
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.oceanBlue.withOpacity(0.15),
+                        child: Text(
+                          inicial,
+                          style: const TextStyle(
+                            color: AppColors.oceanBlue,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    title: Text(
-                      u['nombreUsu'] ?? '',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: AppColors.darkPurple,
+                      title: Text(
+                        u['nombreUsu'] ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.darkPurple,
+                        ),
                       ),
-                    ),
-                    subtitle: Text(
-                      u['objetivo_entreno'] ?? 'Sin objetivo',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.greyPurple.withOpacity(0.6),
+                      subtitle: Text(
+                        u['objetivo_entreno'] ?? 'Sin objetivo',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.greyPurple.withOpacity(0.6),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: esAdmin
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.oceanBlue.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Admin',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.oceanBlue,
+                      trailing: esAdmin
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
                               ),
+                              decoration: BoxDecoration(
+                                color: AppColors.oceanBlue.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Admin',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.oceanBlue,
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              u['sexo'] == 'M'
+                                  ? Icons.male_rounded
+                                  : Icons.female_rounded,
+                              color: u['sexo'] == 'M'
+                                  ? AppColors.mainBlue
+                                  : AppColors.berry,
                             ),
-                          )
-                        : Icon(
-                            u['sexo'] == 'M'
-                                ? Icons.male_rounded
-                                : Icons.female_rounded,
-                            color: u['sexo'] == 'M'
-                                ? AppColors.mainBlue
-                                : AppColors.berry,
-                          ),
-                  );
-                }).toList(),
+                    );
+                  }),
+                ],
               ),
             ),
+
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 }
-
-// ── Widgets helper ───────────────────────────────────────────────────────────
 
 class _StatCard extends StatelessWidget {
   final IconData icon;
@@ -709,45 +700,4 @@ class _GenderBar extends StatelessWidget {
       ],
     );
   }
-}
-
-@override
-Widget build(BuildContext context) {
-  return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.oceanBlue.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.bar_chart_rounded,
-            size: 48,
-            color: AppColors.oceanBlue,
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Dashboard',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkPurple,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Próximamente',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.greyPurple.withOpacity(0.6),
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
-    ),
-  );
 }
