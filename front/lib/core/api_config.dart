@@ -2,28 +2,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
-  static const bool _usePhysicalDevice =
-      true; // Cambia a true si quieres usar la IP fija en dispositivos físicos
+  // Agrégale el /api al final si tu backend lo requiere para los endpoints
+  static const String _productionUrl = "https://liftandmove.onrender.com";
 
-  // IP
-  static const String _myIP = "192.168.1.75";
-
-  static String get baseUrl {
-    // WEB
-    if (kIsWeb) return "http://localhost:8000";
-
-    // ANDROID
-    if (Platform.isAndroid) {
-      return _usePhysicalDevice ? "http://$_myIP:8000" : "http://10.0.2.2:8000";
-    }
-
-    // IOS
-    if (Platform.isIOS) {
-      return _usePhysicalDevice
-          ? "http://$_myIP:8000"
-          : "http://localhost:8000";
-    }
-
-    return "http://localhost:8000";
-  }
+  static String get baseUrl => _productionUrl;
 }
