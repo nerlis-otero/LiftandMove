@@ -5,8 +5,8 @@ from uuid import uuid4
 from pydantic import BaseModel, EmailStr
 from jose import jwt, JWTError
 
-import pymysql
-import pymysql.cursors
+import psycopg2
+import psycopg2.extras
 import bcrypt
 
 from datetime import datetime, timedelta, timezone, date
@@ -46,15 +46,18 @@ TOKEN_EXPIRA_EN_MINUTOS = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+
 def get_db_connection():
-    return pymysql.connect(
+    return psycopg2.connect(
         host=DB_HOST,
         user=DB_USER,
         password=DB_PASSWORD,
-        database=DB_NAME,
-        cursorclass=pymysql.cursors.DictCursor
+        dbname=DB_NAME,
+        port=DB_PORT,
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
-
 
 # get_db_connection() definido arriba con variables de entorno
 
