@@ -1,21 +1,73 @@
-PASOS PARA QUE LA APP LES CORRA, SEGUIR AL PIE DE LA LETRA
+PASOS PARA CORRER LA APP (LEER AL PIE DE LA LETRA)
 
-1. Clonar el repo
-2. Renombrar .env.example → .env
-3. Abrir .env y poner su contraseña de MySQL (no se te olvide guardar los cambios con ctrl + s)
-4. Correr basededatos.sql en su MySQL Workbench
-5. en terminal correr:
-cd back 
-pip install -r requirements.txt
-6. en la misma terminal anterior correr:
-python import_exercises.py
-7. en la misma terminal anterior correr:
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-8. para ver la api funcionando, correr desde el navegador con: http://localhost:8000/docs
-9. abrir nueva terminal y correr:
-cd front
-flutter pub get
-10. en la misma terminal anterior correr:
-flutter run
-elegir desde donde lo quieres correr: emulador, dispositivo fisico, navegador...
-Y LISTO, YA DEBERIA CORRER LA APP SIN PROBLEMA
+Este proyecto está conectado directamente a los servidores en producción (**Render** para el Backend y **Supabase** para la Base de Datos). Sigue estas instrucciones para clonarlo y ejecutarlo localmente en tu computadora.
+
+---
+
+Clonar el repositorio
+Abre tu terminal y clona el proyecto en tu máquina:
+```bash
+git clone https://github.com/nerlis-otero/LiftandMove
+
+```
+
+---
+
+## Paso 2: Configuración de Seguridad (.env)
+
+> **IMPORTANTE:** Por motivos de seguridad, las contraseñas de producción de la base de datos **NO** están públicas en GitHub.
+
+Si solo vas a correr la aplicación móvil (Frontend), puedes saltar al **Paso 3**, ya que la app se comunica con el servidor en la nube de forma automática.
+
+Si necesitas levantar y probar el Backend de Python en tu computadora local:
+
+1. Ve a la carpeta `back`.
+2. Renombra el archivo `.env.example` a `.env`.
+3. Solicítame internamente la contraseña privada de **Supabase** y pégala en la variable correspondiente dentro del archivo `.env`.
+4. **Nota:** Jamás hagas un *push* o subas este archivo `.env` modificado a GitHub.
+
+---
+
+## Paso 3: Ejecutar la Aplicación Móvil (Frontend)
+
+1. Abre una nueva terminal en la raíz del proyecto.
+2. Entra a la carpeta del frontend:
+
+```bash
+   cd front
+
+```
+
+3. Descarga todos los paquetes y dependencias de Flutter ejecutando:
+
+```bash
+   flutter pub get
+
+```
+
+4. Conecta tu celular físico (con la depuración USB activa) o enciende tu emulador, y corre la aplicación con:
+
+```bash
+   flutter run
+
+```
+
+5. Selecciona en la lista el dispositivo donde quieres que se despliegue la app.
+
+**¡Y LISTO!** La aplicación se iniciará en tu dispositivo e interactuará con los datos reales en tiempo real.
+
+---
+
+## Paso 4: Abrir el Panel de Administración Web (Local)
+
+Si quieres revisar o probar el panel de administración de la interfaz web desde tu computadora:
+
+1. Abre tu explorador de archivos y ve a la carpeta `panelweb`.
+2. Haz doble clic sobre el archivo `login.html` para abrirlo en tu navegador web preferido.
+3. Inicia sesión normalmente. Al estar conectado a nuestra API en Render, cualquier cambio, creación o eliminación afectará directamente a la base de datos global.
+
+---
+
+>  **Recomendación de equipo:** Como ya estamos operando con el servidor en producción, tengan mucho cuidado con las pruebas de eliminación de datos (rutinas, usuarios o ejercicios), ya que los cambios se verán reflejados inmediatamente para todos los usuarios de la app. ¡A camellar con cuidado!
+
+```
